@@ -5,6 +5,7 @@
 #include "ots.h"
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <zlib.h>
 
 #include <algorithm>
@@ -678,7 +679,8 @@ bool ProcessGeneric(ots::FontFile *header,
   }
 
   // Then parse any tables left.
-  for (const auto &table_entry : tables) {
+  for (size_t i = 0; i < tables.size(); i++) {
+    const auto &table_entry = tables[i];
     if (!font->GetTable(table_entry.tag)) {
       if (!font->ParseTable(table_entry, data, arena)) {
         return OTS_FAILURE_MSG_TAG("Failed to parse table", table_entry.tag);
@@ -710,8 +712,10 @@ bool ProcessGeneric(ots::FontFile *header,
   }
 
   uint16_t num_output_tables = 0;
-  for (const auto &it : table_map) {
-    ots::Table *table = font->GetTable(it.first);
+  std::map<uint32_t, ots::TableEntry>::const_iterator it;
+  std::map<uint32_t, ots::TableEntry>::const_iterator end = table_map.end();
+  for (it = table_map.begin(); it != end; ++it) {
+    ots::Table *table = font->GetTable(it->first);
     if (table != NULL && table->ShouldSerialize())
       num_output_tables++;
   }
@@ -742,8 +746,9 @@ bool ProcessGeneric(ots::FontFile *header,
   std::vector<ots::TableEntry> out_tables;
 
   size_t head_table_offset = 0;
-  for (const auto &it : table_map) {
-    uint32_t input_offset = it.second.offset;
+  end = table_map.end();
+  for (it = table_map.begin(); it != end; ++it) {
+    uint32_t input_offset = it->second.offset;
     const auto &ot = header->table_entries.find(input_offset);
     if (ot != header->table_entries.end()) {
       ots::TableEntry out = ot->second;
@@ -753,7 +758,7 @@ bool ProcessGeneric(ots::FontFile *header,
       out_tables.push_back(out);
     } else {
       ots::TableEntry out;
-      out.tag = it.first;
+      out.tag = it->first;
       out.offset = output->Tell();
 
       if (out.tag == OTS_TAG('h','e','a','d')) {
@@ -835,8 +840,10 @@ bool ProcessGeneric(ots::FontFile *header,
 namespace ots {
 
 FontFile::~FontFile() {
-  for (const auto& it : tables) {
-    delete it.second;
+  std::map<TableEntry, Table*>::const_iterator it;
+  std::map<TableEntry, Table*>::const_iterator end = tables.end();
+  for (it = tables.begin(); it != end; ++it) {
+    delete it->second;
   }
   tables.clear();
 }
@@ -940,14 +947,16 @@ Table* Font::GetTypedTable(uint32_t tag) const {
 
 void Font::DropGraphite() {
   file->context->Message(0, "Dropping all Graphite tables");
-  for (const std::pair<uint32_t, Table*> entry : m_tables) {
-    if (entry.first == OTS_TAG_FEAT ||
-        entry.first == OTS_TAG_GLAT ||
-        entry.first == OTS_TAG_GLOC ||
-        entry.first == OTS_TAG_SILE ||
-        entry.first == OTS_TAG_SILF ||
-        entry.first == OTS_TAG_SILL) {
-      entry.second->Drop("Discarding Graphite table");
+  std::map<uint32_t, Table*>::const_iterator entry;
+  std::map<uint32_t, Table*>::const_iterator end = m_tables.end();
+  for (entry = m_tables.begin(); entry != end; ++entry) {
+    if (entry->first == OTS_TAG_FEAT ||
+        entry->first == OTS_TAG_GLAT ||
+        entry->first == OTS_TAG_GLOC ||
+        entry->first == OTS_TAG_SILE ||
+        entry->first == OTS_TAG_SILF ||
+        entry->first == OTS_TAG_SILL) {
+      entry->second->Drop("Discarding Graphite table");
     }
   }
   dropped_graphite = true;
@@ -959,7 +968,7 @@ bool Table::ShouldSerialize() {
 
 void Table::Message(int level, const char *format, va_list va) {
   char msg[206] = { OTS_UNTAG(m_tag), ':', ' ' };
-  std::vsnprintf(msg + 6, 200, format, va);
+  vsnprintf(msg + 6, 200, format, va);
 // fprintf(stderr, format, va); // font debugging, see TenFourFox issue 317
   m_font->file->context->Message(level, msg);
 }

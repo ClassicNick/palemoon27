@@ -250,8 +250,8 @@ private:
 
 // IID for the nsINode interface
 #define NS_INODE_IID \
-{ 0xe8fdd227, 0x27da, 0x46ee, \
-  { 0xbe, 0xf3, 0x1a, 0xef, 0x5a, 0x8f, 0xc5, 0xb4 } }
+{ 0x66972940, 0x1d1b, 0x4d15, \
+ { 0x93, 0x11, 0x96, 0x72, 0x84, 0x2e, 0xc7, 0x27 } }
 
 /**
  * An internal interface that abstracts some DOMNode-related parts that both
@@ -270,9 +270,6 @@ public:
   typedef mozilla::dom::OwningNodeOrString OwningNodeOrString;
   typedef mozilla::dom::TextOrElementOrDocument TextOrElementOrDocument;
   typedef mozilla::ErrorResult ErrorResult;
-
-  template<class T>
-  using Sequence = mozilla::dom::Sequence<T>;
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_INODE_IID)
 
@@ -570,96 +567,14 @@ public:
   }
 
   /**
-   * Get the NodeInfo for this element
-   * @return the nodes node info
+   * Get the tag for this element. This will always return a non-null atom
+   * pointer (as implied by the naming of the method).  For elements this is
+   * the non-namespaced tag, and for other nodes it's something like "#text",
+   * "#comment", "#document", etc.
    */
-  inline mozilla::dom::NodeInfo* NodeInfo() const
+  nsIAtom* Tag() const
   {
-    return mNodeInfo;
-  }
-
-  inline bool IsInNamespace(int32_t aNamespace) const
-  {
-    return mNodeInfo->NamespaceID() == aNamespace;
-  }
-
-protected:
-  // These 2 methods are useful for the recursive templates IsHTMLElement,
-  // IsSVGElement, etc.
-  inline bool IsNodeInternal() const
-  {
-    return false;
-  }
-
-  template<typename First, typename... Args>
-  inline bool IsNodeInternal(First aFirst, Args... aArgs) const
-  {
-    return mNodeInfo->Equals(aFirst) || IsNodeInternal(aArgs...);
-  }
-
-public:
-  inline bool IsHTMLElement() const
-  {
-    return IsElement() && IsInNamespace(kNameSpaceID_XHTML);
-  }
-
-  inline bool IsHTMLElement(nsIAtom* aTag) const
-  {
-    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_XHTML);
-  }
-
-  template<typename First, typename... Args>
-  inline bool IsAnyOfHTMLElements(First aFirst, Args... aArgs) const
-  {
-    return IsHTMLElement() && IsNodeInternal(aFirst, aArgs...);
-  }
-
-  inline bool IsSVGElement() const
-  {
-    return IsElement() && IsInNamespace(kNameSpaceID_SVG);
-  }
-
-  inline bool IsSVGElement(nsIAtom* aTag) const
-  {
-    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_SVG);
-  }
-
-  template<typename First, typename... Args>
-  inline bool IsAnyOfSVGElements(First aFirst, Args... aArgs) const
-  {
-    return IsSVGElement() && IsNodeInternal(aFirst, aArgs...);
-  }
-
-  inline bool IsXULElement() const
-  {
-    return IsElement() && IsInNamespace(kNameSpaceID_XUL);
-  }
-
-  inline bool IsXULElement(nsIAtom* aTag) const
-  {
-    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_XUL);
-  }
-
-  template<typename First, typename... Args>
-  inline bool IsAnyOfXULElements(First aFirst, Args... aArgs) const
-  {
-    return IsXULElement() && IsNodeInternal(aFirst, aArgs...);
-  }
-
-  inline bool IsMathMLElement() const
-  {
-    return IsElement() && IsInNamespace(kNameSpaceID_MathML);
-  }
-
-  inline bool IsMathMLElement(nsIAtom* aTag) const
-  {
-    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_MathML);
-  }
-
-  template<typename First, typename... Args>
-  inline bool IsAnyOfMathMLElements(First aFirst, Args... aArgs) const
-  {
-    return IsMathMLElement() && IsNodeInternal(aFirst, aArgs...);
+    return mNodeInfo->NameAtom();
   }
 
   /**
@@ -1767,9 +1682,9 @@ public:
   mozilla::dom::Element* GetPreviousElementSibling() const;
   mozilla::dom::Element* GetNextElementSibling() const;
 
-  void Before(const Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
-  void After(const Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
-  void ReplaceWith(const Sequence<OwningNodeOrString>& aNodes,
+  void Before(const mozilla::dom::Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
+  void After(const mozilla::dom::Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
+  void ReplaceWith(const mozilla::dom::Sequence<OwningNodeOrString>& aNodes,
                    ErrorResult& aRv);
   /**
    * Remove this node from its parent, if any.
@@ -1780,8 +1695,8 @@ public:
   mozilla::dom::Element* GetFirstElementChild() const;
   mozilla::dom::Element* GetLastElementChild() const;
 
-  void Prepend(const Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
-  void Append(const Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
+  void Prepend(const mozilla::dom::Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
+  void Append(const mozilla::dom::Sequence<OwningNodeOrString>& aNodes, ErrorResult& aRv);
 
   void GetBoxQuads(const BoxQuadOptions& aOptions,
                    nsTArray<nsRefPtr<DOMQuad> >& aResult,

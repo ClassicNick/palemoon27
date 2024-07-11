@@ -318,7 +318,7 @@ bool OpenTypeNAME::IsValidNameId(uint16_t nameID, bool addIfMissing) {
         // If there is an existing NameRecord with platform_id == 0 (Unicode),
         // then add a NameRecord for the the specified nameID with arguments
         // 0 (Unicode), 0 (v1.0), 0 (unspecified language).
-        this->names.emplace_back(0, 0, 0, nameID);
+        this->names.emplace_back(NameRecord(0, 0, 0, nameID));
         this->names.back().text = "NoName";
         added_unicode = true;
       }
@@ -328,7 +328,7 @@ bool OpenTypeNAME::IsValidNameId(uint16_t nameID, bool addIfMissing) {
         // If there is an existing NameRecord with platform_id == 1 (Macintosh),
         // then add a NameRecord for the specified nameID with arguments
         // 1 (Macintosh), 0 (Roman), 0 (English).
-        this->names.emplace_back(1, 0, 0, nameID);
+        this->names.emplace_back(NameRecord(1, 0, 0, nameID));
         this->names.back().text = "NoName";
         added_macintosh = true;
       }
@@ -338,7 +338,7 @@ bool OpenTypeNAME::IsValidNameId(uint16_t nameID, bool addIfMissing) {
         // If there is an existing NameRecord with platform_id == 3 (Windows),
         // then add a NameRecord for the specified nameID with arguments
         // 3 (Windows), 1 (UCS), 1033 (US English).
-        this->names.emplace_back(3, 1, 1033, nameID);
+        this->names.emplace_back(NameRecord(3, 1, 1033, nameID));
         this->names.back().text = "NoName";
         added_windows = true;
       }

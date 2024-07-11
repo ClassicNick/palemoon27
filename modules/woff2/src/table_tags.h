@@ -17,7 +17,7 @@
 #ifndef WOFF2_TABLE_TAGS_H_
 #define WOFF2_TABLE_TAGS_H_
 
-#include <inttypes.h>
+#include "woff2_common.h"
 
 namespace woff2 {
 

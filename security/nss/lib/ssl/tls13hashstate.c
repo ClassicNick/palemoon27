@@ -95,6 +95,9 @@ tls13_RecoverHashState(sslSocket *ss,
     PRUint64 group;
     const sslNamedGroupDef *selectedGroup;
     PRUint64 appTokenLen;
+    sslReader reader;
+    sslReadBuffer appTokenReader = { 0 };
+    unsigned int hashLen;
 
     rv = ssl_SelfEncryptUnprotect(ss, cookie, cookieLen,
                                   plaintext, &plaintextLen, sizeof(plaintext));
@@ -102,7 +105,10 @@ tls13_RecoverHashState(sslSocket *ss,
         return SECFailure;
     }
 
-    sslReader reader = SSL_READER(plaintext, plaintextLen);
+    /*reader = SSL_READER(plaintext, plaintextLen);*/
+    reader.buf.buf = plaintext;
+    reader.buf.len = plaintextLen;
+    reader.offset = 0;
 
     /* Should start with 0xff. */
     rv = sslRead_ReadNumber(&reader, 1, &sentinel);
@@ -138,7 +144,6 @@ tls13_RecoverHashState(sslSocket *ss,
         return SECFailure;
     }
     ss->xtnData.applicationToken.len = appTokenLen;
-    sslReadBuffer appTokenReader = { 0 };
     rv = sslRead_Read(&reader, appTokenLen, &appTokenReader);
     if (rv != SECSuccess) {
         FATAL_ERROR(ss, SSL_ERROR_RX_MALFORMED_CLIENT_HELLO, illegal_parameter);
@@ -148,7 +153,7 @@ tls13_RecoverHashState(sslSocket *ss,
     PORT_Memcpy(ss->xtnData.applicationToken.data, appTokenReader.buf, appTokenLen);
 
     /* The remainder is the hash. */
-    unsigned int hashLen = SSL_READER_REMAINING(&reader);
+    hashLen = SSL_READER_REMAINING(&reader);
     if (hashLen != tls13_GetHashSize(ss)) {
         FATAL_ERROR(ss, SSL_ERROR_RX_MALFORMED_CLIENT_HELLO, illegal_parameter);
         return SECFailure;

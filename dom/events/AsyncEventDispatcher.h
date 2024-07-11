@@ -33,6 +33,7 @@ public:
     , mEventType(aEventType)
     , mBubbles(aBubbles)
     , mDispatchChromeOnly(aDispatchChromeOnly)
+    , mCanceled(false)
   {
   }
 
@@ -41,12 +42,17 @@ public:
     : mTarget(aTarget)
     , mEventType(aEventType)
     , mBubbles(aBubbles)
+    , mDispatchChromeOnly(false)
+    , mCanceled(false)
   {
   }
 
   AsyncEventDispatcher(dom::EventTarget* aTarget, nsIDOMEvent* aEvent)
     : mTarget(aTarget)
     , mEvent(aEvent)
+    , mBubbles(false)
+    , mDispatchChromeOnly(false)
+    , mCanceled(false)
   {
   }
 
@@ -60,9 +66,9 @@ public:
   nsCOMPtr<dom::EventTarget> mTarget;
   nsCOMPtr<nsIDOMEvent> mEvent;
   nsString              mEventType;
-  bool                  mBubbles = false;
-  bool                  mDispatchChromeOnly = false;
-  bool                  mCanceled = false;
+  bool                  mBubbles;
+  bool                  mDispatchChromeOnly;
+  bool                  mCanceled;
 };
 
 class LoadBlockingAsyncEventDispatcher final : public AsyncEventDispatcher

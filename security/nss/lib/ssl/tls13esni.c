@@ -50,6 +50,7 @@ tls13_CopyESNIKeys(sslEsniKeys *okeys)
 {
     sslEsniKeys *nkeys;
     SECStatus rv;
+    PRCList *cur_p;
 
     PORT_Assert(okeys);
 
@@ -68,7 +69,7 @@ tls13_CopyESNIKeys(sslEsniKeys *okeys)
             goto loser;
         }
     }
-    for (PRCList *cur_p = PR_LIST_HEAD(&okeys->keyShares);
+    for (cur_p = PR_LIST_HEAD(&okeys->keyShares);
          cur_p != &okeys->keyShares;
          cur_p = PR_NEXT_LINK(cur_p)) {
         TLS13KeyShareEntry *copy = tls13_CopyKeyShareEntry(
@@ -135,6 +136,7 @@ tls13_DecodeESNIKeys(SECItem *data, sslEsniKeys **keysp)
     sslEsniKeys *keys;
     PRUint8 checksum[4];
     sslReader rdr = SSL_READER(data->data, data->len);
+    sslReader rdr2;
 
     rv = sslRead_ReadNumber(&rdr, 2, &tmpn);
     if (rv != SECSuccess) {
@@ -177,7 +179,11 @@ tls13_DecodeESNIKeys(SECItem *data, sslEsniKeys **keysp)
         goto loser;
     }
 
-    sslReader rdr2 = SSL_READER(tmp.buf, tmp.len);
+    /*rdr2 = SSL_READER(tmp.buf, tmp.len)*/
+    rdr2.buf.buf = tmp.buf;
+    rdr2.buf.len = tmp.len;
+    rdr2.offset = 0;
+
     while (SSL_READER_REMAINING(&rdr2)) {
         TLS13KeyShareEntry *ks = NULL;
 
@@ -256,6 +262,7 @@ SSLExp_EncodeESNIKeys(PRUint16 *cipherSuites, unsigned int cipherSuiteCount,
     unsigned int savedOffset;
     SECStatus rv;
     sslBuffer b = SSL_BUFFER_EMPTY;
+    unsigned int i;
 
     rv = sslBuffer_AppendNumber(&b, TLS13_ESNI_VERSION, 2);
     if (rv != SECSuccess) {
@@ -285,7 +292,7 @@ SSLExp_EncodeESNIKeys(PRUint16 *cipherSuites, unsigned int cipherSuiteCount,
     if (rv != SECSuccess) {
         goto loser;
     }
-    for (unsigned int i = 0; i < cipherSuiteCount; i++) {
+    for (i = 0; i < cipherSuiteCount; i++) {
         rv = sslBuffer_AppendNumber(&b, cipherSuites[i], 2);
         if (rv != SECSuccess) {
             goto loser;
@@ -349,6 +356,13 @@ SSLExp_SetESNIKeyPair(PRFileDesc *fd,
     SECKEYPublicKey *pubKey = NULL;
     SECItem data = { siBuffer, CONST_CAST(PRUint8, record), recordLen };
     PLArenaPool *arena = NULL;
+    PRUint64 asuite;
+    sslReader csrdr;
+    ssl3CipherSuiteCfg *suiteCfg;
+    TLS13KeyShareEntry *entry;
+    /* Make sure the cipher suite is OK. */
+    SSLVersionRange vrange = { SSL_LIBRARY_VERSION_TLS_1_3,
+                               SSL_LIBRARY_VERSION_TLS_1_3 };
 
     ss = ssl_FindSocket(fd);
     if (!ss) {
@@ -365,19 +379,19 @@ SSLExp_SetESNIKeyPair(PRFileDesc *fd,
     /* Check the cipher suites. */
     (void)ssl3_config_match_init(ss);
     /* Make sure the cipher suite is OK. */
-    SSLVersionRange vrange = { SSL_LIBRARY_VERSION_TLS_1_3,
-                               SSL_LIBRARY_VERSION_TLS_1_3 };
+    /*csrdr = SSL_READER(keys->suites.data,
+                         keys->suites.len);*/
+    csrdr.buf.buf = keys->suites.data;
+    csrdr.buf.len = keys->suites.len;
+    csrdr.offset = 0;
 
-    sslReader csrdr = SSL_READER(keys->suites.data,
-                                 keys->suites.len);
-    while (SSL_READER_REMAINING(&csrdr)) {
-        PRUint64 asuite;
+    while (SSL_READER_REMAINING(&csrdr)) { 
 
         rv = sslRead_ReadNumber(&csrdr, 2, &asuite);
         if (rv != SECSuccess) {
             goto loser;
         }
-        const ssl3CipherSuiteCfg *suiteCfg =
+        suiteCfg =
             ssl_LookupCipherSuiteCfg(asuite, ss->cipherSuites);
         if (!ssl3_config_match(suiteCfg, ss->ssl3.policy, &vrange, ss)) {
             /* Illegal suite. */
@@ -394,7 +408,7 @@ SSLExp_SetESNIKeyPair(PRFileDesc *fd,
         PORT_SetError(SEC_ERROR_INVALID_ARGS);
         goto loser;
     }
-    TLS13KeyShareEntry *entry = (TLS13KeyShareEntry *)PR_LIST_HEAD(
+    entry = (TLS13KeyShareEntry *)PR_LIST_HEAD(
         &keys->keyShares);
     if (entry->group->keaType != ssl_kea_ecdh) {
         PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -738,6 +752,7 @@ tls13_ServerDecryptEsniXtn(const sslSocket *ss, PRUint8 *in, unsigned int inLen,
     unsigned int keyShareBufLen;
     PRUint8 hash[64];
     SECStatus rv;
+    unsigned int hashLen;
 
     /* Read the cipher suite. */
     rv = sslRead_ReadNumber(&rdr, 2, &suite);
@@ -769,7 +784,7 @@ tls13_ServerDecryptEsniXtn(const sslSocket *ss, PRUint8 *in, unsigned int inLen,
     }
 
     /* Check that the hash matches. */
-    unsigned int hashLen = tls13_GetHashSizeForHash(suiteDef->prf_hash);
+    hashLen = tls13_GetHashSizeForHash(suiteDef->prf_hash);
     PORT_Assert(hashLen <= sizeof(hash));
     rv = PK11_HashBuf(ssl3_HashTypeToOID(suiteDef->prf_hash),
                       hash,

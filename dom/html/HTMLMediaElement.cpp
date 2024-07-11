@@ -818,7 +818,7 @@ static bool HasSourceChildren(nsIContent* aElement)
   for (nsIContent* child = aElement->GetFirstChild();
        child;
        child = child->GetNextSibling()) {
-    if (child->IsHTMLElement(nsGkAtoms::source))
+    if (child->IsHTML(nsGkAtoms::source))
     {
       return true;
     }
@@ -3207,14 +3207,15 @@ void HTMLMediaElement::MetadataLoaded(const MediaInfo* aInfo,
   }
 
   // Expose the tracks to JS directly.
-  for (OutputMediaStream& out : mOutputStreams) {
+  for (uint32_t i = 0; i < mOutputStreams.Length(); ++i) {
+    OutputMediaStream* out = &mOutputStreams[i];
     if (aInfo->HasAudio()) {
       TrackID audioTrackId = aInfo->mAudio.mTrackId;
-      out.mStream->CreateDOMTrack(audioTrackId, MediaSegment::AUDIO);
+      out->mStream->CreateDOMTrack(audioTrackId, MediaSegment::AUDIO);
     }
     if (aInfo->HasVideo()) {
       TrackID videoTrackId = aInfo->mVideo.mTrackId;
-      out.mStream->CreateDOMTrack(videoTrackId, MediaSegment::VIDEO);
+      out->mStream->CreateDOMTrack(videoTrackId, MediaSegment::VIDEO);
     }
   }
 
@@ -4150,7 +4151,7 @@ nsIContent* HTMLMediaElement::GetNextSource()
     nsIContent* child = GetChildAt(startOffset);
 
     // If child is a <source> element, it is the next candidate.
-    if (child && child->IsHTMLElement(nsGkAtoms::source)) {
+    if (child && child->IsHTML(nsGkAtoms::source)) {
       mSourceLoadCandidate = child;
       return child;
     }

@@ -61,7 +61,8 @@ MediaSourceDemuxer::ScanSourceBuffersForContent()
   MonitorAutoLock mon(mMonitor);
 
   bool haveEmptySourceBuffer = false;
-  for (const auto& sourceBuffer : mSourceBuffers) {
+  for (size_t i = 0; i< mSourceBuffers.Length(); i++) {
+    const auto& sourceBuffer = mSourceBuffers[i];
     MediaInfo info = sourceBuffer->GetMetadata();
     if (!info.HasAudio() && !info.HasVideo()) {
       haveEmptySourceBuffer = true;

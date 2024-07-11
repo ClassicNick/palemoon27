@@ -6,6 +6,7 @@
 #if !defined(MediaDecoderReader_h_)
 #define MediaDecoderReader_h_
 
+#include "mozilla/TypedEnum.h"
 #include "AbstractMediaDecoder.h"
 #include "MediaInfo.h"
 #include "MediaData.h"
@@ -43,11 +44,10 @@ private:
   virtual ~MetadataHolder() {}
 };
 
-enum class ReadMetadataFailureReason : int8_t
-{
+MOZ_BEGIN_ENUM_CLASS(ReadMetadataFailureReason, int8_t)
   WAITING_FOR_RESOURCES,
   METADATA_ERROR
-};
+MOZ_END_ENUM_CLASS(ReadMetadataFailureReason)
 
 // Encapsulates the decoding and reading of media data. Reading can either
 // synchronous and done on the calling "decode" thread, or asynchronous and

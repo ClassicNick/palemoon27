@@ -7,11 +7,11 @@
 #ifndef MOZILLA_SOURCEBUFFERCONTENTMANAGER_H_
 #define MOZILLA_SOURCEBUFFERCONTENTMANAGER_H_
 
+#include "mozilla/TypedEnum.h"
+#include "TimeUnits.h"
 #include "MediaData.h"
 #include "MediaPromise.h"
 #include "MediaSourceDecoder.h"
-#include "SourceBuffer.h"
-#include "TimeUnits.h"
 #include "nsString.h"
 
 namespace mozilla {
@@ -22,6 +22,10 @@ namespace dom {
 
 using media::TimeUnit;
 using media::TimeIntervals;
+
+namespace dom {
+class SourceBuffer;
+}
 
 class SourceBufferContentManager {
 public:
@@ -57,13 +61,12 @@ public:
   // http://w3c.github.io/media-source/#sourcebuffer-coded-frame-removal
   virtual nsRefPtr<RangeRemovalPromise> RangeRemoval(TimeUnit aStart, TimeUnit aEnd) = 0;
 
-  enum class EvictDataResult : int8_t
-  {
+  MOZ_BEGIN_NESTED_ENUM_CLASS(EvictDataResult, int8_t)
     NO_DATA_EVICTED,
     DATA_EVICTED,
     CANT_EVICT,
     BUFFER_FULL,
-  };
+  MOZ_END_NESTED_ENUM_CLASS(EvictDataResult)
 
   // Evicts data up to aPlaybackTime. aThreshold is used to
   // bound the data being evicted. It will not evict more than aThreshold
@@ -91,12 +94,11 @@ public:
 
   // Current state as per Segment Parser Loop Algorithm
   // http://w3c.github.io/media-source/index.html#sourcebuffer-segment-parser-loop
-  enum class AppendState : int32_t
-  {
+  MOZ_BEGIN_NESTED_ENUM_CLASS(AppendState, int32_t)
     WAITING_FOR_SEGMENT,
     PARSING_INIT_SEGMENT,
     PARSING_MEDIA_SEGMENT,
-  };
+  MOZ_END_NESTED_ENUM_CLASS(AppendState)
 
   virtual AppendState GetAppendState()
   {

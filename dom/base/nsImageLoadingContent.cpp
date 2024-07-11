@@ -157,7 +157,8 @@ nsImageLoadingContent::Notify(imgIRequest* aRequest,
     
     nsAutoScriptBlocker scriptBlocker;
 
-    for (auto& observer : observers) {
+    for (size_t i = 0; i < observers.Length(); i++) {
+        nsCOMPtr<imgINotificationObserver>& observer = observers[i];
         observer->Notify(aRequest, aType, aData);
     }
   }

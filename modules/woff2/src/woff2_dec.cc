@@ -186,7 +186,8 @@ bool TripletDecode(const uint8_t* flags_in, const uint8_t* in, size_t in_size,
     // Possible overflow but coordinate values are not security sensitive
     x += dx;
     y += dy;
-    *result++ = {x, y, on_curve};
+    Point newpoint = {x, y, on_curve};
+    *result++ = newpoint;
   }
   *in_bytes_consumed = triplet_index;
   return true;
@@ -639,7 +640,8 @@ bool ReconstructGlyf(const uint8_t* data, Table* glyf_table,
 }
 
 Table* FindTable(std::vector<Table*>* tables, uint32_t tag) {
-  for (Table* table : *tables) {
+  for (size_t i = 0; i < (*tables).size(); i++) {
+    Table* table = (*tables)[i];
     if (table->tag == tag) {
       return table;
     }
@@ -850,7 +852,8 @@ uint64_t ComputeOffsetToFirstTable(const WOFF2Header& hdr) {
   if (hdr.header_version) {
     offset = CollectionHeaderSize(hdr.header_version, hdr.ttc_fonts.size())
       + kSfntHeaderSize * hdr.ttc_fonts.size();
-    for (const auto& ttc_font : hdr.ttc_fonts) {
+    for (size_t i = 0; i < hdr.ttc_fonts.size(); i++) {
+      const TtcFont& ttc_font = hdr.ttc_fonts[i];
       offset += kSfntEntrySize * ttc_font.table_indices.size();
     }
   }
@@ -860,11 +863,13 @@ uint64_t ComputeOffsetToFirstTable(const WOFF2Header& hdr) {
 std::vector<Table*> Tables(WOFF2Header* hdr, size_t font_index) {
   std::vector<Table*> tables;
   if (PREDICT_FALSE(hdr->header_version)) {
-    for (auto index : hdr->ttc_fonts[font_index].table_indices) {
+    for (size_t i = 0; i < hdr->ttc_fonts[font_index].table_indices.size(); i++) {
+      uint16_t index = hdr->ttc_fonts[font_index].table_indices[i];
       tables.push_back(&hdr->tables[index]);
     }
   } else {
-    for (auto& table : hdr->tables) {
+    for (size_t i = 0; i < hdr->tables.size(); i++) {
+      Table table = hdr->tables[i];
       tables.push_back(&table);
     }
   }
@@ -899,7 +904,7 @@ bool ReconstructFont(uint8_t* transformed_buf,
   for (size_t i = 0; i < tables.size(); i++) {
     Table& table = *tables[i];
 
-    std::pair<uint32_t, uint32_t> checksum_key = {table.tag, table.src_offset};
+    std::pair<uint32_t, uint32_t> checksum_key = std::pair<uint32_t, uint32_t>(table.tag, table.src_offset);
     bool reused = metadata->checksums.find(checksum_key)
                != metadata->checksums.end();
     if (PREDICT_FALSE(font_index == 0 && reused)) {
@@ -1194,14 +1199,16 @@ bool WriteHeaders(const uint8_t* data, size_t length, RebuildMetadata* metadata,
   std::vector<Table> sorted_tables(hdr->tables);
   if (hdr->header_version) {
     // collection; we have to sort the table offset vector in each font
-    for (auto& ttc_font : hdr->ttc_fonts) {
+    for (size_t l = 0; l < hdr->ttc_fonts.size(); l++) {
+      TtcFont& ttc_font = hdr->ttc_fonts[l];
       std::map<uint32_t, uint16_t> sorted_index_by_tag;
-      for (auto table_index : ttc_font.table_indices) {
+      for (size_t k = 0; k < ttc_font.table_indices.size(); k++) {
+        uint16_t table_index = ttc_font.table_indices[k];
         sorted_index_by_tag[hdr->tables[table_index].tag] = table_index;
       }
       uint16_t index = 0;
-      for (auto& i : sorted_index_by_tag) {
-        ttc_font.table_indices[index++] = i.second;
+      for (std::map<uint32_t, uint16_t>::iterator i=sorted_index_by_tag.begin(); i!=sorted_index_by_tag.end(); ++i) {
+        ttc_font.table_indices[index++] = i->second;
       }
     }
   } else {
@@ -1242,7 +1249,8 @@ bool WriteHeaders(const uint8_t* data, size_t length, RebuildMetadata* metadata,
       offset = StoreOffsetTable(result, offset, ttc_font.flavor,
                                 ttc_font.table_indices.size());
 
-      for (const auto table_index : ttc_font.table_indices) {
+      for (size_t i = 0; i < ttc_font.table_indices.size(); i++) {
+        const uint16_t table_index = ttc_font.table_indices[i];
         uint32_t tag = hdr->tables[table_index].tag;
         metadata->font_infos[i].table_entry_by_tag[tag] = offset;
         offset = StoreTableEntry(result, offset, tag);

@@ -21,7 +21,7 @@
 #include "prenv.h"
 #include "prinit.h"
 
-#include <stdint.h>
+//#include <stdint.h>
 
 #ifdef DEBUG
 #define THREADMARK
@@ -150,13 +150,13 @@ PORT_ZAllocAligned(size_t bytes, size_t alignment, void **mem)
 void *
 PORT_ZAllocAlignedOffset(size_t size, size_t alignment, size_t offset)
 {
+    void *mem = NULL;
+    void *v;
     PORT_Assert(offset < size);
     if (offset > size) {
         return NULL;
     }
-
-    void *mem = NULL;
-    void *v = PORT_ZAllocAligned(size, alignment, &mem);
+    v = PORT_ZAllocAligned(size, alignment, &mem);
     if (!v) {
         return NULL;
     }

@@ -99,7 +99,7 @@ struct BidiParagraphData {
       for (nsIContent* content = aBlockFrame->GetContent() ; content; 
            content = content->GetParent()) {
         if (content->IsNodeOfType(nsINode::eHTML_FORM_CONTROL) ||
-            content->IsXULElement()) {
+            content->IsXUL()) {
           mIsVisual = false;
           break;
         }
@@ -1158,7 +1158,7 @@ nsBidiPresUtils::TraverseFrames(nsBlockFrame*              aBlockFrame,
         // U+FFFC"
         // <wbr>, however, is treated as U+200B ZERO WIDTH SPACE. See
         // http://dev.w3.org/html5/spec/Overview.html#phrasing-content-1
-        aBpd->AppendUnichar(content->IsHTMLElement(nsGkAtoms::wbr) ?
+        aBpd->AppendUnichar(content->IsHTML(nsGkAtoms::wbr) ?
                             kZWSP : kObjectSubstitute);
         if (!frame->IsInlineOutside()) {
           // if it is not inline, end the paragraph
@@ -1434,7 +1434,8 @@ nsBidiPresUtils::RepositionRubyFrame(
       nscoord segmentISize = RepositionFrame(rbc, isLTR, icoord,
                                              aContinuationStates,
                                              frameWM, false, frameSize);
-      for (nsRubyTextContainerFrame* rtc : textContainers) {
+      for (size_t i = 0; i < textContainers.Length(); i++) {
+        nsRubyTextContainerFrame* rtc = textContainers[i];
         nscoord isize = RepositionFrame(rtc, isLTR, icoord, aContinuationStates,
                                         frameWM, false, frameSize);
         segmentISize = std::max(segmentISize, isize);
@@ -1454,7 +1455,8 @@ nsBidiPresUtils::RepositionRubyFrame(
       nscoord columnISize = RepositionFrame(column.mBaseFrame, isLTR, icoord,
                                             aContinuationStates,
                                             frameWM, false, frameSize);
-      for (nsRubyTextFrame* rt : column.mTextFrames) {
+      for (size_t i = 0; i < column.mTextFrames.Length(); i++) {
+        nsRubyTextFrame* rt = column.mTextFrames[i];
         nscoord isize = RepositionFrame(rt, isLTR, icoord, aContinuationStates,
                                         frameWM, false, frameSize);
         columnISize = std::max(columnISize, isize);

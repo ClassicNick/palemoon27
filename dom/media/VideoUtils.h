@@ -217,10 +217,10 @@ class SharedThreadPool;
 // thread pool to ensure they can run when the MediaDataDecoder clients'
 // thread pool is blocked.  Tasks on the PLATFORM_DECODER thread pool must not
 // wait on tasks in the PLAYBACK thread pool.
-enum class MediaThreadType {
+MOZ_BEGIN_ENUM_CLASS(MediaThreadType)
   PLAYBACK, // MediaDecoderStateMachine and MediaDecoderReader
   PLATFORM_DECODER
-};
+MOZ_END_ENUM_CLASS(MediaThreadType)
 // Returns the thread pool that is shared amongst all decoder state machines
 // for decoding streams.
 already_AddRefed<SharedThreadPool> GetMediaThreadPool(MediaThreadType aType);

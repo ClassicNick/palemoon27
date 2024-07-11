@@ -22,7 +22,12 @@ class MediaResource;
 class MediaDecoderStateMachine;
 class SourceBufferDecoder;
 class TrackBuffer;
-enum MSRangeRemovalAction : uint8_t;
+
+MOZ_BEGIN_ENUM_CLASS(MSRangeRemovalAction, uint8_t)
+  RUN = 0,
+  SKIP = 1
+MOZ_END_ENUM_CLASS(MSRangeRemovalAction)
+
 class MediaSourceDemuxer;
 
 namespace dom {
@@ -110,7 +115,7 @@ private:
   nsRefPtr<MediaDecoderReader> mReader;
   bool mIsUsingFormatReader;
   nsRefPtr<MediaSourceDemuxer> mDemuxer;
-  Atomic<bool> mEnded;
+  bool mEnded;
 };
 
 } // namespace mozilla

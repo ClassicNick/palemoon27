@@ -7,6 +7,7 @@
 #define	__nsHTTPCompressConv__h__	1
 
 #include "nsIStreamConverter.h"
+#include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 
 #include "zlib.h"

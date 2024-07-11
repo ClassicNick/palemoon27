@@ -16,6 +16,7 @@
 #include "MediaResource.h"
 #include "SharedDecoderManager.h"
 #include "SharedThreadPool.h"
+#include "TimeUnits.h"
 #include "VideoUtils.h"
 
 #include <algorithm>
@@ -25,6 +26,7 @@ using namespace mozilla::media;
 using mozilla::layers::Image;
 using mozilla::layers::LayerManager;
 using mozilla::layers::LayersBackend;
+using mozilla::media::TimeUnit;
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* GetFormatDecoderLog() {
@@ -505,7 +507,7 @@ MediaFormatReader::RequestVideoData(bool aSkipToNextKeyframe,
 
   MOZ_ASSERT(HasVideo() && mPlatform && mVideo.mDecoder);
 
-  media::TimeUnit timeThreshold{media::TimeUnit::FromMicroseconds(aTimeThreshold)};
+  media::TimeUnit timeThreshold = media::TimeUnit::FromMicroseconds(aTimeThreshold);
   if (ShouldSkip(aSkipToNextKeyframe, timeThreshold)) {
     Flush(TrackInfo::kVideoTrack);
     nsRefPtr<VideoDataPromise> p = mVideo.mPromise.Ensure(__func__);
@@ -840,7 +842,7 @@ MediaFormatReader::DecodeDemuxedSamples(TrackType aTrack,
       decoder.mInfo = info;
       decoder.mLastStreamSourceID = info->GetID();
       // Flush will clear our array of queued samples. So make a copy now.
-      nsTArray<nsRefPtr<MediaRawData>> samples{decoder.mQueuedSamples};
+      nsTArray<nsRefPtr<MediaRawData>>& samples = decoder.mQueuedSamples;
       Flush(aTrack);
       decoder.mDecoder->Shutdown();
       decoder.mDecoder = nullptr;
@@ -869,7 +871,8 @@ MediaFormatReader::DecodeDemuxedSamples(TrackType aTrack,
                           [self, aTrack] (DemuxerFailureReason aResult) {
                             auto& decoder = self->GetDecoderData(aTrack);
                             decoder.mSeekRequest.Complete();
-                            switch (aResult) {
+                            int8_t result = aResult;
+                            switch (result) {
                               case DemuxerFailureReason::WAITING_FOR_DATA:
                                 self->NotifyWaitingForData(aTrack);
                                 break;

@@ -14,6 +14,7 @@
 #include "mozilla/Preferences.h"
 #include "mfapi.h"
 #include "MFTDecoder.h"
+#include <initguid.h>
 
 const CLSID CLSID_VideoProcessorMFT =
 {

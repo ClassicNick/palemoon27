@@ -4,10 +4,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/Preferences.h"
+#include "ContainerParser.h"
 #include "TrackBuffersManager.h"
 #include "SourceBufferResource.h"
 #include "SourceBuffer.h"
 #include "MediaSourceDemuxer.h"
+#include "MediaSourceUtils.h"
 
 #ifdef MOZ_FMP4
 #include "MP4Demuxer.h"
@@ -216,16 +219,18 @@ TrackBuffersManager::Buffered()
   if (HasAudio()) {
     tracks.AppendElement(&mAudioBufferedRanges);
   }
-  for (auto trackRanges : tracks) {
+  for (size_t i = 0; i < tracks.Length(); i++) {
+    const TimeIntervals* trackRanges = tracks[i];
     highestEndTime = std::max(trackRanges->GetEnd(), highestEndTime);
   }
 
   // 3. Let intersection ranges equal a TimeRange object containing a single range from 0 to highest end time.
-  TimeIntervals intersection{TimeInterval(TimeUnit::FromSeconds(0), highestEndTime)};
+  TimeIntervals intersection = TimeIntervals(TimeInterval(TimeUnit::FromSeconds(0), highestEndTime));
 
   // 4. For each track buffer managed by this SourceBuffer, run the following steps:
   //   1. Let track ranges equal the track buffer ranges for the current track buffer.
-  for (const TimeIntervals* trackRanges : tracks) {
+  for (size_t i = 0; i < tracks.Length(); i++) {
+    const TimeIntervals* trackRanges = tracks[i];
     // 2. If readyState is "ended", then set the end time on the last range in track ranges to highest end time.
     // 3. Let new intersection ranges equal the intersection between the intersection ranges and the track ranges.
     if (mEnded) {
@@ -272,7 +277,9 @@ TrackBuffersManager::CompleteResetParserState()
   MOZ_ASSERT(OnTaskQueue());
   MSE_DEBUG("");
 
-  for (auto& track : GetTracksList()) {
+  nsTArray<TrackBuffersManager::TrackData*> tracksList = GetTracksList();
+  for (size_t i = 0; i < tracksList.Length(); i++) {
+    TrackBuffersManager::TrackData* track = tracksList[i];
     // 2. Unset the last decode timestamp on all track buffers.
     // 3. Unset the last frame duration on all track buffers.
     // 4. Unset the highest end timestamp on all track buffers.
@@ -427,7 +434,9 @@ TrackBuffersManager::CodedFrameRemoval(TimeInterval aInterval)
   bool dataRemoved = false;
 
   // 3. For each track buffer in this source buffer, run the following steps:
-  for (auto track : GetTracksList()) {
+  nsTArray<TrackBuffersManager::TrackData*> tracksList = GetTracksList();
+  for (size_t i = 0; i < tracksList.Length(); i++) {
+    TrackBuffersManager::TrackData* track = tracksList[i];
     MSE_DEBUGV("Processing %s track", track->mInfo->mMimeType.get());
     // 1. Let remove end timestamp be the current value of duration
     // See bug: https://www.w3.org/Bugs/Public/show_bug.cgi?id=28727
@@ -443,7 +452,9 @@ TrackBuffersManager::CodedFrameRemoval(TimeInterval aInterval)
     // 2. If this track buffer has a random access point timestamp that is greater than or equal to end,
     // then update remove end timestamp to that random access point timestamp.
     if (end < track->mBufferedRanges.GetEnd()) {
-      for (auto& frame : track->mBuffers.LastElement()) {
+      TrackBuffer& data = track->mBuffers.LastElement();
+      for (size_t j = 0; j < data.Length(); j++) {
+        const auto& frame = data[j];
         if (frame->mKeyframe && frame->mTime >= end.ToMicroseconds()) {
           removeEndTimestamp = TimeUnit::FromMicroseconds(frame->mTime);
           break;
@@ -455,7 +466,7 @@ TrackBuffersManager::CodedFrameRemoval(TimeInterval aInterval)
     // timestamps greater than or equal to start and less than the remove end timestamp.
     // 4. Remove decoding dependencies of the coded frames removed in the previous step:
     // Remove all coded frames between the coded frames removed in the previous step and the next random access point after those removed frames.
-    TimeIntervals removedInterval{TimeInterval(start, removeEndTimestamp)};
+    TimeIntervals removedInterval = TimeIntervals(TimeInterval(start, removeEndTimestamp));
     RemoveFrames(removedInterval, *track, 0);
 
     // 5. If this object is in activeSourceBuffers, the current playback position
@@ -522,7 +533,8 @@ TrackBuffersManager::AppendIncomingBuffers()
 {
   MOZ_ASSERT(OnTaskQueue());
   MonitorAutoLock mon(mMonitor);
-  for (auto& incomingBuffer : mIncomingBuffers) {
+  for (size_t i = 0; i < mIncomingBuffers.Length(); i++) {
+    auto& incomingBuffer = mIncomingBuffers[i];
     if (!mInputBuffer) {
       mInputBuffer = incomingBuffer.first();
     } else if (!mInputBuffer->AppendElements(*incomingBuffer.first())) {
@@ -1203,7 +1215,8 @@ TrackBuffersManager::ProcessFrames(TrackBuffer& aSamples, TrackData& aTrackData)
   // a frame be ignored due to the target window.
   bool needDiscontinuityCheck = true;
 
-  for (auto& sample : aSamples) {
+  for (size_t i = 0; i < aSamples.Length(); i++) {
+    auto& sample = aSamples[i];
     MSE_DEBUGV("Processing %s frame(pts:%lld end:%lld, dts:%lld, duration:%lld, "
                "kf:%d)",
                aTrackData.mInfo->mMimeType.get(),
@@ -1269,7 +1282,9 @@ TrackBuffersManager::ProcessFrames(TrackBuffer& aSamples, TrackData& aTrackData)
         // Set group start timestamp equal to the group end timestamp.
         mGroupStartTimestamp = Some(mGroupEndTimestamp);
       }
-      for (auto& track : GetTracksList()) {
+      nsTArray<TrackBuffersManager::TrackData*> tracksList = GetTracksList();
+      for (size_t j = 0; j < tracksList.Length(); j++) {
+        TrackBuffersManager::TrackData* track = tracksList[j];
         // 2. Unset the last decode timestamp on all track buffers.
         // 3. Unset the last frame duration on all track buffers.
         // 4. Unset the highest end timestamp on all track buffers.
@@ -1385,7 +1400,8 @@ TrackBuffersManager::CheckNextInsertionIndex(TrackData& aTrackData,
 
   // Find which discontinuity we should insert the frame before.
   TimeInterval target;
-  for (const auto& interval : aTrackData.mBufferedRanges) {
+  for (size_t i = 0; i < aTrackData.mBufferedRanges.Length(); i++) {
+    const auto& interval = aTrackData.mBufferedRanges[i];
     if (aSampleTime < interval.mStart) {
       target = interval;
       break;
@@ -1842,10 +1858,10 @@ TrackBuffersManager::GetSample(TrackInfo::TrackType aTrack,
   // Our previous index has been overwritten, attempt to find the new one.
   for (uint32_t i = 0; i < track.Length(); i++) {
     const nsRefPtr<MediaRawData>& sample = track[i];
-    TimeInterval sampleInterval{
+    TimeInterval sampleInterval = TimeInterval(
       TimeUnit::FromMicroseconds(sample->mTimecode),
       TimeUnit::FromMicroseconds(sample->mTimecode + sample->mDuration),
-      aFuzz};
+      aFuzz);
 
     if (sampleInterval.ContainsWithStrictEnd(trackData.mNextSampleTimecode)) {
       nsRefPtr<MediaRawData> p = sample->Clone();
@@ -1866,10 +1882,10 @@ TrackBuffersManager::GetSample(TrackInfo::TrackType aTrack,
   // presentation timestamp. There will likely be small jerkiness.
     for (uint32_t i = 0; i < track.Length(); i++) {
     const nsRefPtr<MediaRawData>& sample = track[i];
-    TimeInterval sampleInterval{
+    TimeInterval sampleInterval = TimeInterval(
       TimeUnit::FromMicroseconds(sample->mTime),
       TimeUnit::FromMicroseconds(sample->GetEndTime()),
-      aFuzz};
+      aFuzz);
 
     if (sampleInterval.ContainsWithStrictEnd(trackData.mNextSampleTimecode)) {
       nsRefPtr<MediaRawData> p = sample->Clone();

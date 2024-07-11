@@ -43,7 +43,7 @@ bool OpenTypeGLOC::Parse(const uint8_t* data, size_t length) {
   if (this->flags & LONG_FORMAT) {
     unsigned long last_location = 0;
     for (size_t i = 0; i < locations_len; ++i) {
-      this->locations.emplace_back();
+      this->locations.emplace_back(0);
       uint32_t& location = this->locations[i];
       if (!table.ReadU32(&location) || location < last_location) {
         return DropGraphite("Failed to read valid locations[%lu]", i);
@@ -68,7 +68,7 @@ bool OpenTypeGLOC::Parse(const uint8_t* data, size_t length) {
   if (this->flags & ATTRIB_IDS) {  // attribIds array present
     //this->attribIds.resize(numAttribs);
     for (unsigned i = 0; i < this->numAttribs; ++i) {
-      this->attribIds.emplace_back();
+      this->attribIds.emplace_back(0);
       if (!table.ReadU16(&this->attribIds[i]) ||
           !name->IsValidNameId(this->attribIds[i])) {
         return DropGraphite("Failed to read valid attribIds[%u]", i);
@@ -87,8 +87,9 @@ bool OpenTypeGLOC::Serialize(OTSStream* out) {
       !out->WriteU16(this->flags) ||
       !out->WriteU16(this->numAttribs) ||
       (this->flags & LONG_FORMAT ? !SerializeParts(this->locations, out) :
-       ![&] {
-         for (uint32_t location : this->locations) {
+       ![&]() -> bool {
+         for (size_t i = 0; i < this->locations.size(); i++) {
+           uint32_t location = this->locations[i];
            if (!out->WriteU16(static_cast<uint16_t>(location))) {
              return false;
            }

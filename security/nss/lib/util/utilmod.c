@@ -76,11 +76,11 @@ os_open(const char *filename, int oflag, int pmode)
 {
     int fd;
 
+    wchar_t *filenameWide;
     if (!filename) {
         return -1;
     }
-
-    wchar_t *filenameWide = _NSSUTIL_UTF8ToWide(filename);
+    filenameWide = _NSSUTIL_UTF8ToWide(filename);
     if (!filenameWide) {
         return -1;
     }
@@ -95,11 +95,11 @@ os_stat(const char *path, os_stat_type *buffer)
 {
     int result;
 
+    wchar_t *pathWide;
     if (!path) {
         return -1;
     }
-
-    wchar_t *pathWide = _NSSUTIL_UTF8ToWide(path);
+    pathWide = _NSSUTIL_UTF8ToWide(path);
     if (!pathWide) {
         return -1;
     }
@@ -114,15 +114,16 @@ os_fopen(const char *filename, const char *mode)
 {
     FILE *fp;
 
+    wchar_t *filenameWide;
+    wchar_t *modeWide;
     if (!filename || !mode) {
         return NULL;
     }
-
-    wchar_t *filenameWide = _NSSUTIL_UTF8ToWide(filename);
+    filenameWide = _NSSUTIL_UTF8ToWide(filename);
     if (!filenameWide) {
         return NULL;
     }
-    wchar_t *modeWide = _NSSUTIL_UTF8ToWide(mode);
+    modeWide = _NSSUTIL_UTF8ToWide(mode);
     if (!modeWide) {
         PORT_Free(filenameWide);
         return NULL;
@@ -138,12 +139,12 @@ PRStatus
 _NSSUTIL_Access(const char *path, PRAccessHow how)
 {
     int result;
-
+    int mode;
+    wchar_t *pathWide;
     if (!path) {
         return PR_FAILURE;
     }
 
-    int mode;
     switch (how) {
         case PR_ACCESS_WRITE_OK:
             mode = 2;
@@ -158,7 +159,7 @@ _NSSUTIL_Access(const char *path, PRAccessHow how)
             return PR_FAILURE;
     }
 
-    wchar_t *pathWide = _NSSUTIL_UTF8ToWide(path);
+    pathWide = _NSSUTIL_UTF8ToWide(path);
     if (!pathWide) {
         return PR_FAILURE;
     }
@@ -173,11 +174,11 @@ nssutil_Delete(const char *name)
 {
     BOOL result;
 
+    wchar_t *nameWide;
     if (!name) {
         return PR_FAILURE;
     }
-
-    wchar_t *nameWide = _NSSUTIL_UTF8ToWide(name);
+    nameWide = _NSSUTIL_UTF8ToWide(name);
     if (!nameWide) {
         return PR_FAILURE;
     }
@@ -191,16 +192,17 @@ static PRStatus
 nssutil_Rename(const char *from, const char *to)
 {
     BOOL result;
+    wchar_t *fromWide;
+    wchar_t *toWide;
 
     if (!from || !to) {
         return PR_FAILURE;
     }
-
-    wchar_t *fromWide = _NSSUTIL_UTF8ToWide(from);
+    fromWide = _NSSUTIL_UTF8ToWide(from);
     if (!fromWide) {
         return PR_FAILURE;
     }
-    wchar_t *toWide = _NSSUTIL_UTF8ToWide(to);
+    toWide = _NSSUTIL_UTF8ToWide(to);
     if (!toWide) {
         PORT_Free(fromWide);
         return PR_FAILURE;

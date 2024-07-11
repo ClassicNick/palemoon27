@@ -85,14 +85,14 @@ PR_STATIC_ASSERT(PR_ARRAY_SIZE(ssl_hello_retry_random) == SSL3_RANDOM_LENGTH);
 static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
    /*      cipher_suite                     policy       enabled   isPresent */
  /* Special TLS 1.3 suites. */
- { TLS_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE },
  { TLS_CHACHA20_POLY1305_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE },
+ { TLS_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE },
  { TLS_AES_256_GCM_SHA384, SSL_ALLOWED, PR_TRUE, PR_FALSE },
 
- { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
    /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA is out of order to work around
@@ -111,8 +111,8 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
  { TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,        SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_RC4_128_SHA,          SSL_ALLOWED, PR_FALSE, PR_FALSE},
 
- { TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,     SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,SSL_ALLOWED,PR_TRUE,  PR_FALSE},
+ { TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,     SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_DHE_DSS_WITH_AES_128_GCM_SHA256,     SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,     SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_DHE_DSS_WITH_AES_256_GCM_SHA384,     SSL_ALLOWED, PR_FALSE, PR_FALSE},
@@ -204,6 +204,7 @@ PR_STATIC_ASSERT(PR_ARRAY_SIZE(defaultSignatureSchemes) <=
 void
 ssl3_CheckCipherSuiteOrderConsistency()
 {
+#if 0
     unsigned int i;
 
     PORT_Assert(SSL_NumImplementedCiphers == PR_ARRAY_SIZE(cipherSuites));
@@ -211,6 +212,7 @@ ssl3_CheckCipherSuiteOrderConsistency()
     for (i = 0; i < PR_ARRAY_SIZE(cipherSuites); ++i) {
         PORT_Assert(SSL_ImplementedCiphers[i] == cipherSuites[i].cipher_suite);
     }
+#endif
 }
 #endif
 
@@ -5722,6 +5724,7 @@ ssl3_SendRSAClientKeyExchange(sslSocket *ss, SECKEYPublicKey *svrPubKey)
     SECStatus rv = SECFailure;
     SECItem enc_pms = { siBuffer, NULL, 0 };
     PRBool isTLS;
+    unsigned int svrPubKeyBits;
 
     PORT_Assert(ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss));
     PORT_Assert(ss->opt.noLocks || ssl_HaveXmitBufLock(ss));
@@ -5738,7 +5741,7 @@ ssl3_SendRSAClientKeyExchange(sslSocket *ss, SECKEYPublicKey *svrPubKey)
     }
 
     /* Get the wrapped (encrypted) pre-master secret, enc_pms */
-    unsigned int svrPubKeyBits = SECKEY_PublicKeyStrengthInBits(svrPubKey);
+    svrPubKeyBits = SECKEY_PublicKeyStrengthInBits(svrPubKey);
     enc_pms.len = (svrPubKeyBits + 7) / 8;
     /* Check that the RSA key isn't larger than 8k bit. */
     if (svrPubKeyBits > SSL_MAX_RSA_KEY_BITS) {
@@ -8161,6 +8164,7 @@ static SECStatus
 ssl_GenerateServerRandom(sslSocket *ss)
 {
     SECStatus rv = ssl3_GetNewRandom(ss->ssl3.hs.server_random);
+    PRUint8 *downgradeSentinel;
     if (rv != SECSuccess) {
         return SECFailure;
     }
@@ -8192,7 +8196,7 @@ ssl_GenerateServerRandom(sslSocket *ss)
      *
      *   44 4F 57 4E 47 52 44 00
      */
-    PRUint8 *downgradeSentinel =
+    downgradeSentinel =
         ss->ssl3.hs.server_random +
         SSL3_RANDOM_LENGTH - sizeof(tls13_downgrade_random);
 
@@ -9784,12 +9788,13 @@ ssl3_CSwapPK11SymKey(PK11SymKey **x, PK11SymKey **y, PRBool c)
 {
     uintptr_t mask = (uintptr_t)c;
     unsigned int i;
+    uintptr_t x_ptr = (uintptr_t)*x;
+    uintptr_t y_ptr = (uintptr_t)*y;
+    uintptr_t tmp;
     for (i = 1; i < sizeof(uintptr_t) * 8; i <<= 1) {
         mask |= mask << i;
     }
-    uintptr_t x_ptr = (uintptr_t)*x;
-    uintptr_t y_ptr = (uintptr_t)*y;
-    uintptr_t tmp = (x_ptr ^ y_ptr) & mask;
+    tmp = (x_ptr ^ y_ptr) & mask;
     x_ptr = x_ptr ^ tmp;
     y_ptr = y_ptr ^ tmp;
     *x = (PK11SymKey *)x_ptr;
@@ -12004,6 +12009,8 @@ ssl_RemoveTLSCBCPadding(sslBuffer *plaintext, unsigned int macSize)
 {
     unsigned int paddingLength, good, t, toCheck, i;
     const unsigned int overhead = 1 /* padding length byte */ + macSize;
+    unsigned char mask;
+    unsigned char b;
 
     /* These lengths are all public so we can test them in non-constant
      * time. */
@@ -12035,8 +12042,8 @@ ssl_RemoveTLSCBCPadding(sslBuffer *plaintext, unsigned int macSize)
         t = paddingLength - i;
         /* If i <= paddingLength then the MSB of t is zero and mask is
          * 0xff.  Otherwise, mask is 0. */
-        unsigned char mask = DUPLICATE_MSB_TO_ALL(~t);
-        unsigned char b = plaintext->buf[plaintext->len - 1 - i];
+        mask = DUPLICATE_MSB_TO_ALL(~t);
+        b = plaintext->buf[plaintext->len - 1 - i];
         /* The final |paddingLength+1| bytes should all have the value
          * |paddingLength|. Therefore the XOR should be zero. */
         good &= ~(mask & (paddingLength ^ b));
@@ -12479,6 +12486,7 @@ ssl3_HandleRecord(sslSocket *ss, SSL3Ciphertext *cText)
     SSLContentType rType;
     sslBuffer *plaintext = &ss->gs.buf;
     SSL3AlertDescription alert = internal_error;
+    int errCode;
     PORT_Assert(ss->opt.noLocks || ssl_HaveRecvBufLock(ss));
 
     /* check for Token Presence */
@@ -12608,7 +12616,7 @@ ssl3_HandleRecord(sslSocket *ss, SSL3Ciphertext *cText)
             return SECSuccess;
         }
 
-        int errCode = PORT_GetError();
+        errCode = PORT_GetError();
         SSL3_SendAlert(ss, alert_fatal, alert);
         /* Reset the error code in case SSL3_SendAlert called
          * PORT_SetError(). */

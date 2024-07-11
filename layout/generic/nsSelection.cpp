@@ -353,7 +353,8 @@ struct MOZ_STACK_CLASS AutoPrepareFocusRange
         (!aContinueSelection && aMultipleSelection)) {
       // Scripted command or the user is starting a new explicit multi-range
       // selection.
-      for (RangeData& entry : ranges) {
+      for (size_t i = 0; i < ranges.Length(); i++) {
+        RangeData& entry = ranges[i];
         entry.mRange->SetIsGenerated(false);
       }
       return;
@@ -758,7 +759,7 @@ nsIAtom *GetTag(nsINode *aNode)
     return nullptr;
   }
   
-  return content->NodeInfo()->NameAtom();
+  return content->Tag();
 }
 
 // Returns the parent
@@ -924,8 +925,6 @@ nsFrameSelection::MoveCaret(nsDirection       aDirection,
   } else {
     PostReason(nsISelectionListener::KEYPRESS_REASON);
   }
-
-  AutoPrepareFocusRange prep(sel, aContinueSelection, false);
 
   if (aAmount == eSelectLine) {
     result = FetchDesiredPos(desiredPos);
@@ -1504,8 +1503,6 @@ nsFrameSelection::HandleClick(nsIContent*        aNewFocus,
         AdjustForMaintainedSelection(aNewFocus, aContentOffset))
       return NS_OK; //shift clicked to maintained selection. rejected.
 
-    int8_t index = GetIndexFromSelectionType(nsISelectionController::SELECTION_NORMAL);
-    AutoPrepareFocusRange prep(mDomSelections[index], aContinueSelection, aMultipleSelection);
     return TakeFocus(aNewFocus, aContentOffset, aContentEndOffset, aHint,
                      aContinueSelection, aMultipleSelection);
   }
@@ -2186,8 +2183,6 @@ nsFrameSelection::SelectAll()
   }
   int32_t numChildren = rootContent->GetChildCount();
   PostReason(nsISelectionListener::NO_REASON);
-  int8_t index = GetIndexFromSelectionType(nsISelectionController::SELECTION_NORMAL);
-  AutoPrepareFocusRange prep(mDomSelections[index], false, false);
   return TakeFocus(rootContent, 0, numChildren, CARET_ASSOCIATE_BEFORE, false, false);
 }
 
@@ -2226,7 +2221,9 @@ nsFrameSelection::NotifySelectionListeners(SelectionType aType)
 
 static bool IsCell(nsIContent *aContent)
 {
-  return aContent->IsAnyOfHTMLElements(nsGkAtoms::td, nsGkAtoms::th);
+  return ((aContent->Tag() == nsGkAtoms::td ||
+           aContent->Tag() == nsGkAtoms::th) &&
+          aContent->IsHTML());
 }
 
 nsITableCellLayout* 
@@ -2982,7 +2979,8 @@ nsFrameSelection::GetParentTable(nsIContent *aCell) const
 
   for (nsIContent* parent = aCell->GetParent(); parent;
        parent = parent->GetParent()) {
-    if (parent->IsHTMLElement(nsGkAtoms::table)) {
+    if (parent->Tag() == nsGkAtoms::table &&
+        parent->IsHTML()) {
       return parent;
     }
   }
@@ -3116,13 +3114,15 @@ Selection::GetTableSelectionType(nsIDOMRange* aDOMRange,
     return NS_OK;
 
   nsIContent* startContent = static_cast<nsIContent*>(startNode);
-  if (!(startNode->IsElement() && startContent->IsHTMLElement())) {
+  if (!(startNode->IsElement() && startContent->IsHTML())) {
     // Implies a check for being an element; if we ever make this work
     // for non-HTML, need to keep checking for elements.
     return NS_OK;
   }
 
-  if (startContent->IsHTMLElement(nsGkAtoms::tr))
+  nsIAtom *tag = startContent->Tag();
+
+  if (tag == nsGkAtoms::tr)
   {
     *aTableSelectionType = nsISelectionPrivate::TABLESELECTION_CELL;
   }
@@ -3132,9 +3132,11 @@ Selection::GetTableSelectionType(nsIDOMRange* aDOMRange,
     if (!child)
       return NS_ERROR_FAILURE;
 
-    if (child->IsHTMLElement(nsGkAtoms::table))
+    tag = child->Tag();
+
+    if (tag == nsGkAtoms::table)
       *aTableSelectionType = nsISelectionPrivate::TABLESELECTION_TABLE;
-    else if (child->IsHTMLElement(nsGkAtoms::tr))
+    else if (tag == nsGkAtoms::tr)
       *aTableSelectionType = nsISelectionPrivate::TABLESELECTION_ROW;
   }
 
@@ -4960,7 +4962,7 @@ Selection::Collapse(nsINode& aParentNode, uint32_t aOffset, ErrorResult& aRv)
   nsCOMPtr<nsIContent> content = do_QueryInterface(&aParentNode);
   nsCOMPtr<nsIDocument> doc = do_QueryInterface(&aParentNode);
   printf ("Sel. Collapse to %p %s %d\n", &aParentNode,
-          content ? nsAtomCString(content->NodeInfo()->NameAtom()).get()
+          content ? nsAtomCString(content->Tag()).get()
                   : (doc ? "DOCUMENT" : "???"),
           aOffset);
 #endif
@@ -5501,7 +5503,7 @@ Selection::Extend(nsINode& aParentNode, uint32_t aOffset, ErrorResult& aRv)
   }
   nsCOMPtr<nsIContent> content = do_QueryInterface(&aParentNode);
   printf ("Sel. Extend to %p %s %d\n", content.get(),
-          nsAtomCString(content->NodeInfo()->NameAtom()).get(), aOffset);
+          nsAtomCString(content->Tag()).get(), aOffset);
 #endif
   res = mFrameSelection->NotifySelectionListeners(GetType());
   if (NS_FAILED(res)) {
@@ -6230,10 +6232,11 @@ Selection::WrapObject(JSContext* aCx)
 
 // AutoHideSelectionChanges
 AutoHideSelectionChanges::AutoHideSelectionChanges(const nsFrameSelection* aFrame)
-  : AutoHideSelectionChanges(aFrame ?
-                             aFrame->GetSelection(nsISelectionController::SELECTION_NORMAL) :
-                             nullptr)
-{}
+{
+  AutoHideSelectionChanges(aFrame ?
+                           aFrame->GetSelection(nsISelectionController::SELECTION_NORMAL) :
+                           nullptr);
+}
 
 // nsAutoCopyListener
 
