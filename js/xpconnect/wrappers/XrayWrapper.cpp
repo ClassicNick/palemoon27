@@ -116,13 +116,28 @@ GetXrayType(JSObject* obj)
 }
 
 JSObject*
-XrayAwareCalleeGlobal(JSObject* fun)
+XrayAwareCalleeGlobal(JSObject *fun)
 {
   MOZ_ASSERT(js::IsFunctionObject(fun));
-  JSObject* scope = js::GetObjectParent(fun);
-  if (IsXrayWrapper(scope))
-    scope = js::UncheckedUnwrap(scope);
-  return js::GetGlobalForObjectCrossCompartment(scope);
+
+  if (!js::FunctionHasNativeReserved(fun)) {
+      // Just a normal function, no Xrays involved.
+      return js::GetGlobalForObjectCrossCompartment(fun);
+  }
+
+  // The functions we expect here have the Xray wrapper they're associated with
+  // in their XRAY_DOM_FUNCTION_PARENT_WRAPPER_SLOT and, in a debug build, their
+  // JSNative in their XRAY_DOM_FUNCTION_NATIVE_SLOT_FOR_ASSERT.  Assert that
+  // last bit.
+  MOZ_ASSERT(js::GetFunctionNativeReserved(fun, XRAY_DOM_FUNCTION_NATIVE_SLOT_FOR_ASSERT).toPrivate() ==
+             js::GetFunctionObjectNative(fun));
+
+  Value v =
+      js::GetFunctionNativeReserved(fun, XRAY_DOM_FUNCTION_PARENT_WRAPPER_SLOT);
+  MOZ_ASSERT(IsXrayWrapper(&v.toObject()));
+
+  JSObject *xrayTarget = js::UncheckedUnwrap(&v.toObject());
+  return js::GetGlobalForObjectCrossCompartment(xrayTarget);
 }
 
 JSObject*
@@ -471,8 +486,7 @@ JSXrayTraits::resolveOwnProperty(JSContext* cx, const Wrapper& jsWrapper,
         if (fsMatch->selfHostedName) {
             fun = JS::GetSelfHostedFunction(cx, fsMatch->selfHostedName, id, fsMatch->nargs);
         } else {
-            fun = JS_NewFunctionById(cx, fsMatch->call.op, fsMatch->nargs,
-                                     0, wrapper, id);
+            fun = JS_NewFunctionById(cx, fsMatch->call.op, fsMatch->nargs, 0, id);
         }
         if (!fun)
             return false;
@@ -513,9 +527,9 @@ JSXrayTraits::resolveOwnProperty(JSContext* cx, const Wrapper& jsWrapper,
             }
         } else {
             desc.setGetter(JS_CAST_NATIVE_TO(psMatch->getter.native.op,
-                                             JSPropertyOp));
+                                             JSGetterOp));
             desc.setSetter(JS_CAST_NATIVE_TO(psMatch->setter.native.op,
-                                             JSStrictPropertyOp));
+                                             JSSetterOp));
         }
         desc.setAttributes(flags);
 
@@ -949,9 +963,9 @@ XrayTraits::attachExpandoObject(JSContext* cx, HandleObject target,
     }
 #endif
 
-    // Create the expando object. We parent it directly to the target object.
-    RootedObject expandoObject(cx, JS_NewObjectWithGivenProto(cx, &ExpandoObjectClass,
-                                                              JS::NullPtr(), target));
+    // Create the expando object.
+    RootedObject expandoObject(cx,
+      JS_NewObjectWithGivenProto(cx, &ExpandoObjectClass, JS::NullPtr()));
     if (!expandoObject)
         return nullptr;
 
@@ -1009,6 +1023,24 @@ XrayTraits::cloneExpandoChain(JSContext* cx, HandleObject dst, HandleObject src)
     MOZ_ASSERT(getExpandoChain(dst) == nullptr);
 
     RootedObject oldHead(cx, getExpandoChain(src));
+
+#ifdef DEBUG
+    // When this is called from dom::ReparentWrapper() there will be no native
+    // set for |dst|. Eventually it will be set to that of |src|.  This will
+    // prevent attachExpandoObject() from preserving the wrapper, but this is
+    // not a problem because in this case the wrapper will already have been
+    // preserved when expandos were originally added to |src|. Assert the
+    // wrapper for |src| has been preserved if it has expandos set.
+    if (oldHead) {
+        nsISupports *identity = mozilla::dom::UnwrapDOMObjectToISupports(src);
+        if (identity) {
+            nsWrapperCache* cache = nullptr;
+            CallQueryInterface(identity, &cache);
+            MOZ_ASSERT_IF(cache, cache->PreservingWrapper());
+        }
+    }
+#endif
+
     while (oldHead) {
         RootedObject exclusive(cx, JS_GetReservedSlot(oldHead,
                                                       JSSLOT_EXPANDO_EXCLUSIVE_GLOBAL)
@@ -1181,7 +1213,7 @@ XPCWrappedNativeXrayTraits::resolveNativeProperty(JSContext* cx, HandleObject wr
         if (id != nsXPConnect::GetRuntimeInstance()->GetStringID(XPCJSRuntime::IDX_TO_STRING))
             return true;
 
-        JSFunction* toString = JS_NewFunction(cx, XrayToString, 0, 0, holder, "toString");
+        JSFunction *toString = JS_NewFunction(cx, XrayToString, 0, 0, "toString");
         if (!toString)
             return false;
 

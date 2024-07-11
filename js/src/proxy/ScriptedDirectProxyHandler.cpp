@@ -8,8 +8,6 @@
 
 #include "jsapi.h"
 
-#include "vm/PropDesc.h"
-
 #include "jsobjinlines.h"
 
 using namespace js;
@@ -31,8 +29,8 @@ IsAccessorDescriptor(const PropertyDescriptor& desc)
 // Since we are actually performing 9.1.6.2 IsCompatiblePropertyDescriptor(Extensible, Desc,
 // Current), some parameters are omitted.
 static bool
-ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc,
-                           Handle<PropertyDescriptor> current, bool* bp)
+ValidatePropertyDescriptor(JSContext *cx, bool extensible, Handle<PropertyDescriptor> desc,
+                           Handle<PropertyDescriptor> current, bool *bp)
 {
     // step 2
     if (!current.object()) {
@@ -42,7 +40,8 @@ ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc
     }
 
     // step 3
-    if (!desc.hasValue() && !desc.hasWritable() && !desc.hasGet() && !desc.hasSet() &&
+    if (!desc.hasValue() && !desc.hasWritable() &&
+        !desc.hasGetterObject() && !desc.hasSetterObject() &&
         !desc.hasEnumerable() && !desc.hasConfigurable())
     {
         *bp = true;
@@ -51,10 +50,10 @@ ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc
 
     // step 4
     if ((!desc.hasWritable() || desc.writable() == !current.isReadonly()) &&
-        (!desc.hasGet() || desc.getter() == current.getter()) &&
-        (!desc.hasSet() || desc.setter() == current.setter()) &&
-        (!desc.hasEnumerable() || desc.enumerable() == current.isEnumerable()) &&
-        (!desc.hasConfigurable() || desc.configurable() == !current.isPermanent()))
+        (!desc.hasGetterObject() || desc.getter() == current.getter()) &&
+        (!desc.hasSetterObject() || desc.setter() == current.setter()) &&
+        (!desc.hasEnumerable() || desc.enumerable() == current.enumerable()) &&
+        (!desc.hasConfigurable() || desc.configurable() == current.configurable()))
     {
         if (!desc.hasValue()) {
             *bp = true;
@@ -70,15 +69,13 @@ ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc
     }
 
     // step 5
-    if (current.isPermanent()) {
+    if (!current.configurable()) {
         if (desc.hasConfigurable() && desc.configurable()) {
             *bp = false;
             return true;
         }
 
-        if (desc.hasEnumerable() &&
-            desc.enumerable() != current.isEnumerable())
-        {
+        if (desc.hasEnumerable() && desc.enumerable() != current.enumerable()) {
             *bp = false;
             return true;
         }
@@ -91,15 +88,15 @@ ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc
     }
 
     // step 7a
-    if (IsDataDescriptor(current) != desc.isDataDescriptor()) {
-        *bp = !current.isPermanent();
+    if (current.isDataDescriptor() != desc.isDataDescriptor()) {
+        *bp = current.configurable();
         return true;
     }
 
     // step 8
-    if (IsDataDescriptor(current)) {
+    if (current.isDataDescriptor()) {
         MOZ_ASSERT(desc.isDataDescriptor()); // by step 7a
-        if (current.isPermanent() && current.isReadonly()) {
+        if (!current.configurable() && !current.writable()) {
             if (desc.hasWritable() && desc.writable()) {
                 *bp = false;
                 return true;
@@ -121,11 +118,11 @@ ValidatePropertyDescriptor(JSContext* cx, bool extensible, Handle<PropDesc> desc
     }
 
     // step 9
-    MOZ_ASSERT(IsAccessorDescriptor(current)); // by step 8
+    MOZ_ASSERT(current.isAccessorDescriptor()); // by step 8
     MOZ_ASSERT(desc.isAccessorDescriptor()); // by step 7a
-    *bp = (!current.isPermanent() ||
-           ((!desc.hasSet() || desc.setter() == current.setter()) &&
-            (!desc.hasGet() || desc.getter() == current.getter())));
+    *bp = (current.configurable() ||
+           ((!desc.hasSetterObject() || desc.setter() == current.setter()) &&
+            (!desc.hasGetterObject() || desc.getter() == current.getter())));
     return true;
 }
 
@@ -512,12 +509,12 @@ ScriptedDirectProxyHandler::getOwnPropertyDescriptor(JSContext* cx, HandleObject
         return false;
 
     // step 16-17
-    Rooted<PropDesc> resultDesc(cx);
-    if (!resultDesc.initialize(cx, trapResult))
+    Rooted<PropertyDescriptor> resultDesc(cx);
+    if (!ToPropertyDescriptor(cx, trapResult, true, &resultDesc))
         return false;
 
     // step 18
-    resultDesc.complete();
+    CompletePropertyDescriptor(&resultDesc);
 
     // step 19
     bool valid;
@@ -544,7 +541,8 @@ ScriptedDirectProxyHandler::getOwnPropertyDescriptor(JSContext* cx, HandleObject
     }
 
     // step 22
-    resultDesc.populatePropertyDescriptor(proxy, desc);
+    desc.set(resultDesc);
+    desc.object().set(proxy);
     return true;
 }
 
@@ -575,7 +573,7 @@ ScriptedDirectProxyHandler::defineProperty(JSContext* cx, HandleObject proxy, Ha
 
     // step 9
     RootedValue descObj(cx);
-    if (!NewPropertyDescriptorObject(cx, desc, &descObj))
+    if (!FromPropertyDescriptor(cx, desc, &descObj))
         return false;
 
     // steps 10-11
@@ -592,9 +590,9 @@ ScriptedDirectProxyHandler::defineProperty(JSContext* cx, HandleObject proxy, Ha
     if (!Invoke(cx, ObjectValue(*handler), trap, ArrayLength(argv), argv, &trapResult))
         return false;
 
-    // FIXME - bug 1132522: Step 12 is not implemented yet.
-    // if (!ToBoolean(trapResult))
-    //     return result.fail(JSMSG_PROXY_DEFINE_RETURNED_FALSE);
+    // step 12
+    if (!ToBoolean(trapResult))
+        return result.fail(JSMSG_PROXY_DEFINE_RETURNED_FALSE);
 
     // step 13-14
     Rooted<PropertyDescriptor> targetDesc(cx);
@@ -624,9 +622,7 @@ ScriptedDirectProxyHandler::defineProperty(JSContext* cx, HandleObject proxy, Ha
     } else {
         // step 20
         bool valid;
-        Rooted<PropDesc> pd(cx);
-        pd.initFromPropertyDescriptor(desc);
-        if (!ValidatePropertyDescriptor(cx, extensibleTarget, pd, targetDesc, &valid))
+        if (!ValidatePropertyDescriptor(cx, extensibleTarget, desc, targetDesc, &valid))
             return false;
         if (!valid || (settingConfigFalse && !targetDesc.isPermanent())) {
             JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_DEFINE_INVALID);
@@ -912,7 +908,7 @@ ScriptedDirectProxyHandler::get(JSContext* cx, HandleObject proxy, HandleObject 
             }
         }
 
-        if (IsAccessorDescriptor(desc) && desc.isPermanent() && !desc.hasGetterObject()) {
+        if (IsAccessorDescriptor(desc) && desc.isPermanent() && desc.getterObject() == nullptr) {
             if (!trapResult.isUndefined()) {
                 JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_MUST_REPORT_UNDEFINED);
                 return false;
@@ -925,33 +921,29 @@ ScriptedDirectProxyHandler::get(JSContext* cx, HandleObject proxy, HandleObject 
     return true;
 }
 
-// ES6 (22 May, 2014) 9.5.9 Proxy.[[SetP]](P, V, Receiver)
+// ES6 draft rev 32 (2015 Feb 2) 9.5.9 Proxy.[[Set]](P, V, Receiver)
 bool
 ScriptedDirectProxyHandler::set(JSContext* cx, HandleObject proxy, HandleObject receiver,
                                 HandleId id, MutableHandleValue vp, ObjectOpResult &result) const
 {
-    // step 2
+    // step 2-3 (Steps 1 and 4 are irrelevant assertions.)
     RootedObject handler(cx, GetDirectProxyHandlerObject(proxy));
-
-    // step 3
     if (!handler) {
         JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_PROXY_REVOKED);
         return false;
     }
 
-    // step 4
+    // step 5-7
     RootedObject target(cx, proxy->as<ProxyObject>().target());
-
-    // step 5-6
     RootedValue trap(cx);
     if (!GetProperty(cx, handler, handler, cx->names().set, &trap))
         return false;
 
-    // step 7
+    // step 8
     if (trap.isUndefined())
         return DirectProxyHandler::set(cx, proxy, receiver, id, vp, result);
 
-    // step 8,10
+    // step 9-10
     RootedValue value(cx);
     if (!IdToStringOrSymbol(cx, id, &value))
         return false;
@@ -965,42 +957,36 @@ ScriptedDirectProxyHandler::set(JSContext* cx, HandleObject proxy, HandleObject 
     if (!Invoke(cx, ObjectValue(*handler), trap, ArrayLength(argv), argv, &trapResult))
         return false;
 
-    // FIXME - bug 1132522: Step 9 is not implemented yet.
-    // if (!ToBoolean(trapResult))
-    //     return result.fail(JSMSG_PROXY_SET_RETURNED_FALSE);
-    bool success = ToBoolean(trapResult);
+    // step 11
+    if (!ToBoolean(trapResult))
+        return result.fail(JSMSG_PROXY_SET_RETURNED_FALSE);
 
-    if (success) {
-        // step 12-13
-        Rooted<PropertyDescriptor> desc(cx);
-        if (!GetOwnPropertyDescriptor(cx, target, id, &desc))
-            return false;
+    // step 12-13
+    Rooted<PropertyDescriptor> desc(cx);
+    if (!GetOwnPropertyDescriptor(cx, target, id, &desc))
+        return false;
 
-        // step 14
-        if (desc.object()) {
-            if (IsDataDescriptor(desc) && desc.isPermanent() && desc.isReadonly()) {
-                bool same;
-                if (!SameValue(cx, vp, desc.value(), &same))
-                    return false;
-                if (!same) {
-                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_SET_NW_NC);
-                    return false;
-                }
-            }
-
-            if (IsAccessorDescriptor(desc) && desc.isPermanent() && !desc.hasSetterObject()) {
-                JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_SET_WO_SETTER);
+    // step 14
+    if (desc.object()) {
+        if (IsDataDescriptor(desc) && desc.isPermanent() && desc.isReadonly()) {
+            bool same;
+            if (!SameValue(cx, vp, desc.value(), &same))
+                return false;
+            if (!same) {
+                JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_SET_NW_NC);
                 return false;
             }
         }
+
+        if (IsAccessorDescriptor(desc) && desc.isPermanent() && desc.setterObject() == nullptr) {
+            JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_SET_WO_SETTER);
+            return false;
+        }
     }
 
-    // step 11, 15
-    // XXX FIXME - This use of vp is wrong. Bug 1132522 can clean it up.
-    vp.setBoolean(success);
+    // step 15
     return result.succeed();
 }
-
 
 // ES6 (22 May, 2014) 9.5.13 Proxy.[[Call]]
 bool
@@ -1263,7 +1249,7 @@ js::proxy_revocable(JSContext* cx, unsigned argc, Value* vp)
     RootedValue proxyVal(cx, args.rval());
     MOZ_ASSERT(proxyVal.toObject().is<ProxyObject>());
 
-    RootedObject revoker(cx, NewFunctionByIdWithReserved(cx, RevokeProxy, 0, 0, cx->global(),
+    RootedObject revoker(cx, NewFunctionByIdWithReserved(cx, RevokeProxy, 0, 0,
                          AtomToId(cx->names().revoke)));
     if (!revoker)
         return false;

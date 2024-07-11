@@ -115,7 +115,7 @@ using js::frontend::Parser;
 #define JS_ADDRESSOF_VA_LIST(ap) (&(ap))
 #endif
 
-bool
+JS_PUBLIC_API(bool)
 JS::CallArgs::requireAtLeast(JSContext* cx, const char* fnname, unsigned required) const
 {
     if (length() < required) {
@@ -324,180 +324,6 @@ AssertHeapIsIdleOrStringIsFlat(JSContext* cx, JSString* str)
      */
     MOZ_ASSERT_IF(cx->runtime()->isHeapBusy(), str->isFlat());
 }
-
-JS_PUBLIC_API(bool)
-JS_ConvertArguments(JSContext *cx, const CallArgs &args, const char *format, ...)
-{
-    va_list ap;
-    bool ok;
-
-    AssertHeapIsIdle(cx);
-
-    va_start(ap, format);
-    ok = JS_ConvertArgumentsVA(cx, args, format, ap);
-    va_end(ap);
-    return ok;
-}
-
-JS_PUBLIC_API(bool)
-JS_ConvertArgumentsVA(JSContext *cx, const CallArgs &args, const char *format, va_list ap)
-{
-    unsigned index = 0;
-    bool required;
-    char c;
-    double d;
-    JSString *str;
-    RootedObject obj(cx);
-    RootedValue val(cx);
-
-    AssertHeapIsIdle(cx);
-    CHECK_REQUEST(cx);
-    assertSameCompartment(cx, args);
-    required = true;
-    while ((c = *format++) != '\0') {
-        if (isspace(c))
-            continue;
-        if (c == '/') {
-            required = false;
-            continue;
-        }
-        if (index == args.length()) {
-            if (required) {
-                if (JSFunction *fun = ReportIfNotFunction(cx, args.calleev())) {
-                    char numBuf[12];
-                    JS_snprintf(numBuf, sizeof numBuf, "%u", args.length());
-                    JSAutoByteString funNameBytes;
-                    if (const char *name = GetFunctionNameBytes(cx, fun, &funNameBytes)) {
-                        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr,
-                                             JSMSG_MORE_ARGS_NEEDED,
-                                             name, numBuf, (args.length() == 1) ? "" : "s");
-                    }
-                }
-                return false;
-            }
-            break;
-        }
-        MutableHandleValue arg = args[index++];
-        switch (c) {
-          case 'b':
-            *va_arg(ap, bool *) = ToBoolean(arg);
-            break;
-          case 'c':
-            if (!ToUint16(cx, arg, va_arg(ap, uint16_t *)))
-                return false;
-            break;
-          case 'i':
-          case 'j': // "j" was broken, you should not use it.
-            if (!ToInt32(cx, arg, va_arg(ap, int32_t *)))
-                return false;
-            break;
-          case 'u':
-            if (!ToUint32(cx, arg, va_arg(ap, uint32_t *)))
-                return false;
-            break;
-          case 'd':
-            if (!ToNumber(cx, arg, va_arg(ap, double *)))
-                return false;
-            break;
-          case 'I':
-            if (!ToNumber(cx, arg, &d))
-                return false;
-            *va_arg(ap, double *) = ToInteger(d);
-            break;
-          case 'S':
-            str = ToString<CanGC>(cx, arg);
-            if (!str)
-                return false;
-            arg.setString(str);
-            *va_arg(ap, JSString **) = str;
-            break;
-          case 'o':
-            if (arg.isNullOrUndefined()) {
-                obj = nullptr;
-            } else {
-                obj = ToObject(cx, arg);
-                if (!obj)
-                    return false;
-            }
-            arg.setObjectOrNull(obj);
-            *va_arg(ap, JSObject **) = obj;
-            break;
-          case 'f':
-            obj = ReportIfNotFunction(cx, arg);
-            if (!obj)
-                return false;
-            arg.setObject(*obj);
-            *va_arg(ap, JSFunction **) = &obj->as<JSFunction>();
-            break;
-          case 'v':
-            *va_arg(ap, jsval *) = arg;
-            break;
-          case '*':
-            break;
-          default:
-            JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_BAD_CHAR, format);
-            return false;
-        }
-    }
-    return true;
-}
-
-JS_PUBLIC_API(bool)
-JS_ConvertValue(JSContext *cx, HandleValue value, JSType type, MutableHandleValue vp)
-{
-    bool ok;
-    RootedObject obj(cx);
-    JSString *str;
-    double d;
-
-    AssertHeapIsIdle(cx);
-    CHECK_REQUEST(cx);
-    assertSameCompartment(cx, value);
-    switch (type) {
-      case JSTYPE_VOID:
-        vp.setUndefined();
-        ok = true;
-        break;
-      case JSTYPE_OBJECT:
-        if (value.isNullOrUndefined()) {
-            obj.set(nullptr);
-        } else {
-            obj = ToObject(cx, value);
-            if (!obj)
-                return false;
-        }
-        ok = true;
-        break;
-      case JSTYPE_FUNCTION:
-        vp.set(value);
-        obj = ReportIfNotFunction(cx, vp);
-        ok = (obj != nullptr);
-        break;
-      case JSTYPE_STRING:
-        str = ToString<CanGC>(cx, value);
-        ok = (str != nullptr);
-        if (ok)
-            vp.setString(str);
-        break;
-      case JSTYPE_NUMBER:
-        ok = ToNumber(cx, value, &d);
-        if (ok)
-            vp.setDouble(d);
-        break;
-      case JSTYPE_BOOLEAN:
-        vp.setBoolean(ToBoolean(value));
-        return true;
-      default: {
-        char numBuf[12];
-        JS_snprintf(numBuf, sizeof numBuf, "%d", (int)type);
-        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_BAD_TYPE, numBuf);
-        ok = false;
-        break;
-      }
-    }
-    return ok;
-}
-
 
 JS_PUBLIC_API(bool)
 JS_ValueToObject(JSContext* cx, HandleValue value, MutableHandleObject objp)
@@ -1995,13 +1821,6 @@ JS_PreventExtensions(JSContext *cx, JS::HandleObject obj, ObjectOpResult &result
 }
 
 JS_PUBLIC_API(JSObject *)
-JS_GetParent(JSObject *obj)
-{
-    MOZ_ASSERT(!obj->is<ScopeObject>());
-    return obj->getParent();
-}
-
-JS_PUBLIC_API(JSObject *)
 JS_GetConstructor(JSContext* cx, HandleObject proto)
 {
     AssertHeapIsIdle(cx);
@@ -2106,13 +1925,12 @@ JS_FireOnNewGlobalObject(JSContext* cx, JS::HandleObject global)
     Debugger::onNewGlobalObject(cx, globalObject);
 }
 
-JS_PUBLIC_API(JSObject*)
-JS_NewObject(JSContext* cx, const JSClass* jsclasp, HandleObject parent)
+JS_PUBLIC_API(JSObject *)
+JS_NewObject(JSContext *cx, const JSClass *jsclasp)
 {
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     const Class* clasp = Valueify(jsclasp);
     if (!clasp)
@@ -2121,27 +1939,28 @@ JS_NewObject(JSContext* cx, const JSClass* jsclasp, HandleObject parent)
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
 
-    JSObject* obj = NewObjectWithClassProto(cx, clasp, NullPtr(), parent);
-    MOZ_ASSERT_IF(obj, obj->getParent());
+    JSObject *obj = NewObjectWithClassProto(cx, clasp, NullPtr(), NullPtr());
+    if (obj)
+        obj->assertParentIs(cx->global());
     return obj;
 }
 
-JS_PUBLIC_API(JSObject*)
-JS_NewObjectWithGivenProto(JSContext* cx, const JSClass* jsclasp, HandleObject proto, HandleObject parent)
+JS_PUBLIC_API(JSObject *)
+JS_NewObjectWithGivenProto(JSContext *cx, const JSClass *jsclasp, HandleObject proto)
 {
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, proto, parent);
+    assertSameCompartment(cx, proto);
 
-    const Class* clasp = Valueify(jsclasp);
+    const Class *clasp = Valueify(jsclasp);
     if (!clasp)
         clasp = &PlainObject::class_;    /* default class is Object */
 
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
 
-    return NewObjectWithGivenProto(cx, clasp, proto, parent);
+    return NewObjectWithGivenProto(cx, clasp, proto, JS::NullPtr());
 }
 
 JS_PUBLIC_API(JSObject*)
@@ -2328,8 +2147,8 @@ DefinePropertyById(JSContext* cx, HandleObject obj, HandleId id, HandleValue val
                    const JSNativeWrapper& get, const JSNativeWrapper& set,
                    unsigned attrs, unsigned flags)
 {
-    JSPropertyOp getter = JS_CAST_NATIVE_TO(get.op, JSPropertyOp);
-    JSStrictPropertyOp setter = JS_CAST_NATIVE_TO(set.op, JSStrictPropertyOp);
+    JSGetterOp getter = JS_CAST_NATIVE_TO(get.op, JSGetterOp);
+    JSSetterOp setter = JS_CAST_NATIVE_TO(set.op, JSSetterOp);
 
     // JSPROP_READONLY has no meaning when accessors are involved. Ideally we'd
     // throw if this happens, but we've accepted it for long enough that it's
@@ -2344,7 +2163,7 @@ DefinePropertyById(JSContext* cx, HandleObject obj, HandleId id, HandleValue val
     // JS Function objects.
     //
     // But skip doing this if our accessors are the well-known stub
-    // accessors, since those are known to be JSPropertyOps.  Assert
+    // accessors, since those are known to be JSGetterOps.  Assert
     // some sanity about it, though.
     MOZ_ASSERT_IF(getter == JS_PropertyStub,
                   setter == JS_StrictPropertyStub || (attrs & JSPROP_PROPOP_ACCESSORS));
@@ -2372,7 +2191,7 @@ DefinePropertyById(JSContext* cx, HandleObject obj, HandleId id, HandleValue val
             if (get.info)
                 getobj->setJitInfo(get.info);
 
-            getter = JS_DATA_TO_FUNC_PTR(PropertyOp, getobj);
+            getter = JS_DATA_TO_FUNC_PTR(GetterOp, getobj);
             attrs |= JSPROP_GETTER;
         }
         if (setter && !(attrs & JSPROP_SETTER)) {
@@ -2387,7 +2206,7 @@ DefinePropertyById(JSContext* cx, HandleObject obj, HandleId id, HandleValue val
             if (set.info)
                 setobj->setJitInfo(set.info);
 
-            setter = JS_DATA_TO_FUNC_PTR(StrictPropertyOp, setobj);
+            setter = JS_DATA_TO_FUNC_PTR(SetterOp, setobj);
             attrs |= JSPROP_SETTER;
         }
     } else {
@@ -2912,15 +2731,15 @@ JS_DefineProperties(JSContext* cx, HandleObject obj, const JSPropertySpec* ps)
 }
 
 JS_PUBLIC_API(bool)
-JS::ParsePropertyDescriptorObject(JSContext* cx,
-                                  HandleObject obj,
-                                  HandleValue descObj,
-                                  MutableHandle<JSPropertyDescriptor> desc)
+JS::ObjectToCompletePropertyDescriptor(JSContext *cx,
+                                       HandleObject obj,
+                                       HandleValue descObj,
+                                       MutableHandle<JSPropertyDescriptor> desc)
 {
-    Rooted<PropDesc> d(cx);
-    if (!d.initialize(cx, descObj))
+    if (!ToPropertyDescriptor(cx, descObj, true, desc))
         return false;
-    d.populatePropertyDescriptor(obj, desc);
+    CompletePropertyDescriptor(desc);
+    desc.object().set(obj);
     return true;
 }
 
@@ -3329,15 +3148,14 @@ JS_InitDestroyPrincipalsCallback(JSRuntime* rt, JSDestroyPrincipalsOp destroyPri
     rt->destroyPrincipals = destroyPrincipals;
 }
 
-JS_PUBLIC_API(JSFunction*)
-JS_NewFunction(JSContext* cx, JSNative native, unsigned nargs, unsigned flags,
-               HandleObject parent, const char* name)
+JS_PUBLIC_API(JSFunction *)
+JS_NewFunction(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
+               const char *name)
 {
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
 
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom atom(cx);
     if (name) {
@@ -3347,26 +3165,25 @@ JS_NewFunction(JSContext* cx, JSNative native, unsigned nargs, unsigned flags,
     }
 
     JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, atom);
+    return NewFunction(cx, NullPtr(), native, nargs, funFlags, NullPtr(), atom);
 }
 
-JS_PUBLIC_API(JSFunction*)
-JS_NewFunctionById(JSContext* cx, JSNative native, unsigned nargs, unsigned flags,
-                   HandleObject parent, HandleId id)
+JS_PUBLIC_API(JSFunction *)
+JS_NewFunctionById(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
+                   HandleId id)
 {
     MOZ_ASSERT(JSID_IS_STRING(id));
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     MOZ_ASSERT(native);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom name(cx, JSID_TO_ATOM(id));
     JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, name);
+    return NewFunction(cx, NullPtr(), native, nargs, funFlags, NullPtr(), name);
 }
 
-JS_PUBLIC_API(JSFunction*)
+JS_PUBLIC_API(JSFunction *)
 JS::GetSelfHostedFunction(JSContext* cx, const char* selfHostedName, HandleId id, unsigned nargs)
 {
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
@@ -4647,6 +4464,28 @@ JS_RestoreFrameChain(JSContext* cx)
     AssertHeapIsIdleOrIterating(cx);
     CHECK_REQUEST(cx);
     cx->restoreFrameChain();
+}
+
+JS::AutoSetAsyncStackForNewCalls::AutoSetAsyncStackForNewCalls(
+  JSContext *cx, HandleObject stack, HandleString asyncCause)
+  : cx(cx),
+    oldAsyncStack(cx, cx->runtime()->asyncStackForNewActivations),
+    oldAsyncCause(cx, cx->runtime()->asyncCauseForNewActivations)
+{
+    CHECK_REQUEST(cx);
+
+    SavedFrame *asyncStack = &stack->as<SavedFrame>();
+    MOZ_ASSERT(!asyncCause->empty());
+
+    cx->runtime()->asyncStackForNewActivations = asyncStack;
+    cx->runtime()->asyncCauseForNewActivations = asyncCause;
+}
+
+JS::AutoSetAsyncStackForNewCalls::~AutoSetAsyncStackForNewCalls()
+{
+    cx->runtime()->asyncCauseForNewActivations = oldAsyncCause;
+    cx->runtime()->asyncStackForNewActivations =
+      oldAsyncStack ? &oldAsyncStack->as<SavedFrame>() : nullptr;
 }
 
 /************************************************************************/

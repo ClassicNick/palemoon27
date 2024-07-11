@@ -487,10 +487,7 @@ CreatePrototypeObjectForComplexTypeInstance(JSContext* cx, HandleObject ctorProt
     if (!ctorPrototypePrototype)
         return nullptr;
 
-    return NewObjectWithProto<TypedProto>(cx,
-                                          ctorPrototypePrototype,
-                                          NullPtr(),
-                                          TenuredObject);
+    return NewObjectWithProto<TypedProto>(cx, ctorPrototypePrototype, TenuredObject);
 }
 
 const Class ArrayTypeDescr::class_ = {
@@ -586,7 +583,7 @@ ArrayMetaTypeDescr::create(JSContext* cx,
                            int32_t length)
 {
     Rooted<ArrayTypeDescr*> obj(cx);
-    obj = NewObjectWithProto<ArrayTypeDescr>(cx, arrayTypePrototype, NullPtr(), SingletonObject);
+    obj = NewObjectWithProto<ArrayTypeDescr>(cx, arrayTypePrototype, SingletonObject);
     if (!obj)
         return nullptr;
 
@@ -778,11 +775,11 @@ StructMetaTypeDescr::create(JSContext* cx,
     int32_t alignment = 1;             // Alignment of struct.
     bool opaque = false;               // Opacity of struct.
 
-    userFieldOffsets = NewObjectWithProto<PlainObject>(cx, NullPtr(), NullPtr(), TenuredObject);
+    userFieldOffsets = NewObjectWithProto<PlainObject>(cx, NullPtr(), TenuredObject);
     if (!userFieldOffsets)
         return nullptr;
 
-    userFieldTypes = NewObjectWithProto<PlainObject>(cx, NullPtr(), NullPtr(), TenuredObject);
+    userFieldTypes = NewObjectWithProto<PlainObject>(cx, NullPtr(), TenuredObject);
     if (!userFieldTypes)
         return nullptr;
 
@@ -912,7 +909,7 @@ StructMetaTypeDescr::create(JSContext* cx,
         return nullptr;
 
     Rooted<StructTypeDescr*> descr(cx);
-    descr = NewObjectWithProto<StructTypeDescr>(cx, structTypePrototype, NullPtr(),
+    descr = NewObjectWithProto<StructTypeDescr>(cx, structTypePrototype,
                                                 SingletonObject);
     if (!descr)
         return nullptr;
@@ -1154,7 +1151,7 @@ DefineSimpleTypeDescr(JSContext* cx,
         return false;
 
     Rooted<T*> descr(cx);
-    descr = NewObjectWithProto<T>(cx, funcProto, GlobalObject::upcast(global), SingletonObject);
+    descr = NewObjectWithProto<T>(cx, funcProto, SingletonObject);
     if (!descr)
         return false;
 
@@ -1174,7 +1171,7 @@ DefineSimpleTypeDescr(JSContext* cx,
     // Create the typed prototype for the scalar type. This winds up
     // not being user accessible, but we still create one for consistency.
     Rooted<TypedProto*> proto(cx);
-    proto = NewObjectWithProto<TypedProto>(cx, objProto, NullPtr(), TenuredObject);
+    proto = NewObjectWithProto<TypedProto>(cx, objProto, TenuredObject);
     if (!proto)
         return false;
     descr->initReservedSlot(JS_DESCR_SLOT_TYPROTO, ObjectValue(*proto));
@@ -1210,7 +1207,6 @@ DefineMetaTypeDescr(JSContext* cx,
     // Create ctor.prototype, which inherits from Function.__proto__
 
     RootedObject proto(cx, NewObjectWithProto<PlainObject>(cx, funcProto,
-                                                           GlobalObject::upcast(global),
                                                            SingletonObject));
     if (!proto)
         return nullptr;
@@ -1221,8 +1217,7 @@ DefineMetaTypeDescr(JSContext* cx,
     if (!objProto)
         return nullptr;
     RootedObject protoProto(cx);
-    protoProto = NewObjectWithProto<PlainObject>(cx, objProto,
-                                                 GlobalObject::upcast(global), SingletonObject);
+    protoProto = NewObjectWithProto<PlainObject>(cx, objProto, SingletonObject);
     if (!protoProto)
         return nullptr;
 
@@ -1269,8 +1264,7 @@ GlobalObject::initTypedObjectModule(JSContext* cx, Handle<GlobalObject*> global)
         return false;
 
     Rooted<TypedObjectModuleObject*> module(cx);
-    module = NewObjectWithProto<TypedObjectModuleObject>(cx, objProto,
-                                                         GlobalObject::upcast(global));
+    module = NewObjectWithProto<TypedObjectModuleObject>(cx, objProto);
     if (!module)
         return false;
 
@@ -1476,8 +1470,8 @@ OutlineTypedObject::setOwnerAndData(JSObject* owner, uint8_t* data)
 }
 
 /*static*/ OutlineTypedObject*
-OutlineTypedObject::createUnattachedWithClass(JSContext* cx,
-                                              const Class* clasp,
+OutlineTypedObject::createUnattachedWithClass(JSContext *cx,
+                                              const Class *clasp,
                                               HandleTypeDescr descr,
                                               int32_t length,
                                               gc::InitialHeap heap)
@@ -1492,7 +1486,7 @@ OutlineTypedObject::createUnattachedWithClass(JSContext* cx,
         return nullptr;
 
     NewObjectKind newKind = (heap == gc::TenuredHeap) ? MaybeSingletonObject : GenericObject;
-    OutlineTypedObject* obj = NewObjectWithGroup<OutlineTypedObject>(cx, group, cx->global(),
+    OutlineTypedObject *obj = NewObjectWithGroup<OutlineTypedObject>(cx, group, cx->global(),
                                                                      gc::FINALIZE_OBJECT0, newKind);
     if (!obj)
         return nullptr;
@@ -1629,9 +1623,11 @@ ReportTypedObjTypeError(JSContext* cx,
 }
 
 /* static */ void
-OutlineTypedObject::obj_trace(JSTracer* trc, JSObject* object)
+OutlineTypedObject::obj_trace(JSTracer *trc, JSObject *object)
 {
-    OutlineTypedObject& typedObj = object->as<OutlineTypedObject>();
+    OutlineTypedObject &typedObj = object->as<OutlineTypedObject>();
+
+    MarkShape(trc, &typedObj.shape_, "OutlineTypedObject_shape");
 
     if (!typedObj.owner_)
         return;
@@ -1640,15 +1636,15 @@ OutlineTypedObject::obj_trace(JSTracer* trc, JSObject* object)
     // may not have had their slots updated yet. Note that this does not apply
     // to generational GC because these objects (type descriptors and
     // prototypes) are never allocated in the nursery.
-    TypeDescr& descr = typedObj.maybeForwardedTypeDescr();
+    TypeDescr &descr = typedObj.maybeForwardedTypeDescr();
 
     // Mark the owner, watching in case it is moved by the tracer.
-    JSObject* oldOwner = typedObj.owner_;
+    JSObject *oldOwner = typedObj.owner_;
     gc::MarkObjectUnbarriered(trc, &typedObj.owner_, "typed object owner");
-    JSObject* owner = typedObj.owner_;
+    JSObject *owner = typedObj.owner_;
 
-    uint8_t* oldData = typedObj.outOfLineTypedMem();
-    uint8_t* newData = oldData;
+    uint8_t *oldData = typedObj.outOfLineTypedMem();
+    uint8_t *newData = oldData;
 
     // Update the data pointer if the owner moved and the owner's data is
     // inline with it. Note that an array buffer pointing to data in an inline
@@ -1754,11 +1750,11 @@ ReportPropertyError(JSContext* cx,
 }
 
 bool
-TypedObject::obj_defineProperty(JSContext* cx, HandleObject obj, HandleId id, HandleValue v,
-                                PropertyOp getter, StrictPropertyOp setter, unsigned attrs,
+TypedObject::obj_defineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleValue v,
+                                GetterOp getter, SetterOp setter, unsigned attrs,
                                 ObjectOpResult &result)
 {
-    Rooted<TypedObject*> typedObj(cx, &obj->as<TypedObject>());
+    Rooted<TypedObject *> typedObj(cx, &obj->as<TypedObject>());
     return ReportTypedObjTypeError(cx, JSMSG_OBJECT_NOT_EXTENSIBLE, typedObj);
 }
 
@@ -2155,24 +2151,27 @@ InlineTypedObject::createCopy(JSContext* cx, Handle<InlineTypedObject*> template
 }
 
 /* static */ void
-InlineTypedObject::obj_trace(JSTracer* trc, JSObject* object)
+InlineTypedObject::obj_trace(JSTracer *trc, JSObject *object)
 {
-    InlineTypedObject& typedObj = object->as<InlineTypedObject>();
+    InlineTypedObject &typedObj = object->as<InlineTypedObject>();
 
-    // Inline transparent objects do not have references and do not need to be
-    // traced. If they have an entry in the compartment's LazyArrayBufferTable,
+    MarkShape(trc, &typedObj.shape_, "InlineTypedObject_shape");
+
+    // Inline transparent objects do not have references and do not need more
+    // tracing. If there is an entry in the compartment's LazyArrayBufferTable,
     // tracing that reference will be taken care of by the table itself.
-    MOZ_ASSERT(typedObj.is<InlineOpaqueTypedObject>());
+    if (typedObj.is<InlineTransparentTypedObject>())
+        return;
 
     // When this is called for compacting GC, the related objects we touch here
     // may not have had their slots updated yet.
-    TypeDescr& descr = typedObj.maybeForwardedTypeDescr();
+    TypeDescr &descr = typedObj.maybeForwardedTypeDescr();
 
     descr.traceInstances(trc, typedObj.inlineTypedMem(), 1);
 }
 
 /* static */ void
-InlineTypedObject::objectMovedDuringMinorGC(JSTracer* trc, JSObject* dst, JSObject* src)
+InlineTypedObject::objectMovedDuringMinorGC(JSTracer *trc, JSObject *dst, JSObject *src)
 {
     // Inline typed object element arrays can be preserved on the stack by Ion
     // and need forwarding pointers created during a minor GC. We can't do this
@@ -2340,7 +2339,7 @@ LazyArrayBufferTable::sizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf)
 
 DEFINE_TYPEDOBJ_CLASS(OutlineTransparentTypedObject, OutlineTypedObject::obj_trace);
 DEFINE_TYPEDOBJ_CLASS(OutlineOpaqueTypedObject,      OutlineTypedObject::obj_trace);
-DEFINE_TYPEDOBJ_CLASS(InlineTransparentTypedObject,  nullptr);
+DEFINE_TYPEDOBJ_CLASS(InlineTransparentTypedObject,  InlineTypedObject::obj_trace);
 DEFINE_TYPEDOBJ_CLASS(InlineOpaqueTypedObject,       InlineTypedObject::obj_trace);
 
 static int32_t

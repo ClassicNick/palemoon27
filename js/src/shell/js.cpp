@@ -2575,7 +2575,7 @@ Clone(JSContext* cx, unsigned argc, jsval* vp)
         if (!JS_ValueToObject(cx, args[1], &parent))
             return false;
     } else {
-        parent = JS_GetParent(&args.callee());
+        parent = js::GetGlobalForObjectCrossCompartment(&args.callee());
     }
 
     // Should it worry us that we might be getting with wrappers
@@ -2685,11 +2685,19 @@ static bool
 EvalInContext(JSContext* cx, unsigned argc, jsval* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    
-    RootedString str(cx);
-    RootedObject sobj(cx);
-    if (!JS_ConvertArguments(cx, args, "S / o", str.address(), sobj.address()))
+    if (!args.requireAtLeast(cx, "evalcx", 1))
         return false;
+    
+    RootedString str(cx, ToString(cx, args[0]));
+    if (!str)
+        return false;
+
+    RootedObject sobj(cx);
+    if (args.hasDefined(1)) {
+        sobj = ToObject(cx, args[1]);
+        if (!sobj)
+            return false;
+    }
 
     AutoStableStringChars strChars(cx);
     if (!strChars.initTwoByte(cx, str))
@@ -2856,15 +2864,15 @@ EvalInWorker(JSContext* cx, unsigned argc, jsval* vp)
 }
 
 static bool
-ShapeOf(JSContext* cx, unsigned argc, JS::Value* vp)
+ShapeOf(JSContext *cx, unsigned argc, JS::Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     if (!args.get(0).isObject()) {
         JS_ReportError(cx, "shapeOf: object expected");
         return false;
     }
-    JSObject* obj = &args[0].toObject();
-    args.rval().set(JS_NumberValue(double(uintptr_t(obj->lastProperty()) >> 3)));
+    JSObject *obj = &args[0].toObject();
+    args.rval().set(JS_NumberValue(double(uintptr_t(obj->maybeShape()) >> 3)));
     return true;
 }
 
@@ -2880,7 +2888,7 @@ IsBefore(int64_t t1, int64_t t2)
 }
 
 static bool
-Sleep_fn(JSContext* cx, unsigned argc, Value* vp)
+Sleep_fn(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     int64_t t_ticks;
@@ -3203,34 +3211,6 @@ Elapsed(JSContext* cx, unsigned argc, jsval* vp)
     }
     JS_ReportError(cx, "Wrong number of arguments");
     return false;
-}
-
-static bool
-Parent(JSContext* cx, unsigned argc, jsval* vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-    if (args.length() != 1) {
-        JS_ReportError(cx, "Wrong number of arguments");
-        return false;
-    }
-
-    Value v = args[0];
-    if (v.isPrimitive()) {
-        JS_ReportError(cx, "Only objects have parents!");
-        return false;
-    }
-
-    Rooted<JSObject*> parent(cx, JS_GetParent(&v.toObject()));
-
-    /* Outerize if necessary. */
-    if (parent) {
-        parent = GetOuterObject(cx, parent);
-        if (!parent)
-            return false;
-    }
-
-    args.rval().setObjectOrNull(parent);
-    return true;
 }
 
 static bool
@@ -4897,10 +4877,6 @@ static const JSFunctionSpecWithHelp fuzzing_unsafe_functions[] = {
 "  Get a self-hosted value by its name. Note that these values don't get \n"
 "  cached, so repeatedly getting the same value creates multiple distinct clones."),
 
-    JS_FN_HELP("parent", Parent, 1, 0,
-"parent(obj)",
-"  Returns the parent of obj."),
-
     JS_FN_HELP("line2pc", LineToPC, 0, 0,
 "line2pc([fun,] line)",
 "  Map line number to PC."),
@@ -5357,7 +5333,7 @@ dom_constructor(JSContext* cx, unsigned argc, JS::Value* vp)
     }
 
     RootedObject proto(cx, &protov.toObject());
-    RootedObject domObj(cx, JS_NewObjectWithGivenProto(cx, &dom_class, proto, JS::NullPtr()));
+    RootedObject domObj(cx, JS_NewObjectWithGivenProto(cx, &dom_class, proto));
     if (!domObj)
         return false;
 
@@ -6241,9 +6217,7 @@ main(int argc, char** argv, char** envp)
 #endif
         || !op.addIntOption('\0', "nursery-size", "SIZE-MB", "Set the maximum nursery size in MB", 16)
 #ifdef JS_GC_ZEAL
-        || !op.addStringOption('z', "gc-zeal", "LEVEL[,N]",
-                               "Specifies zealous garbage collection, overriding the environement "
-                               "variable JS_GC_ZEAL.")
+        || !op.addStringOption('z', "gc-zeal", "LEVEL[,N]", gc::ZealModeHelpText)
 #endif
     )
     {

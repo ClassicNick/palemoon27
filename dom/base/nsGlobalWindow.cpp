@@ -587,7 +587,7 @@ nsPIDOMWindow::nsPIDOMWindow(nsPIDOMWindow *aOuterWindow)
   mInnerWindow(nullptr), mOuterWindow(aOuterWindow),
   // Make sure no actual window ends up with mWindowID == 0
   mWindowID(NextWindowID()), mHasNotifiedGlobalCreated(false),
-  mMarkedCCGeneration(0), mSendAfterRemotePaint(false)
+  mMarkedCCGeneration(0)
  {}
 
 nsPIDOMWindow::~nsPIDOMWindow() {}
@@ -2608,7 +2608,7 @@ nsGlobalWindow::SetNewDocument(nsIDocument* aDocument,
 
       SetWrapper(outerObject);
 
-      MOZ_ASSERT(js::GetObjectParent(outerObject) == newInnerGlobal);
+      MOZ_ASSERT(js::GetGlobalForObjectCrossCompartment(outerObject) == newInnerGlobal);
 
       // Inform the nsJSContext, which is the canonical holder of the outer.
       mContext->SetWindowProxy(outerObject);
@@ -3774,21 +3774,6 @@ nsPIDOMWindow::RefreshMediaElements()
   nsRefPtr<AudioChannelService> service =
     AudioChannelService::GetOrCreateAudioChannelService();
   service->RefreshAgentsVolume(this);
-}
-
-void
-nsPIDOMWindow::SendAfterRemotePaintIfRequested()
-{
-  if (!mSendAfterRemotePaint) {
-    return;
-  }
-
-  mSendAfterRemotePaint = false;
-
-  nsContentUtils::DispatchChromeEvent(GetExtantDoc(),
-                                      GetParentTarget(),
-                                      NS_LITERAL_STRING("MozAfterRemotePaint"),
-                                      false, false);
 }
 
 // nsISpeechSynthesisGetter

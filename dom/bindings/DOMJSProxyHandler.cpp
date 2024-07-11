@@ -33,17 +33,22 @@ const char DOMProxyHandler::family = 0;
 js::DOMProxyShadowsResult
 DOMProxyShadows(JSContext* cx, JS::Handle<JSObject*> proxy, JS::Handle<jsid> id)
 {
+  JS::Rooted<JSObject*> expando(cx, DOMProxyHandler::GetExpandoObject(proxy));
   JS::Value v = js::GetProxyExtra(proxy, JSPROXYSLOT_EXPANDO);
-  if (v.isObject()) {
+  bool isOverrideBuiltins = !v.isObject() && !v.isUndefined();
+  if (expando) {
     bool hasOwn;
-    Rooted<JSObject*> object(cx, &v.toObject());
-    if (!JS_AlreadyHasOwnPropertyById(cx, object, id, &hasOwn))
+    if (!JS_AlreadyHasOwnPropertyById(cx, expando, id, &hasOwn))
       return js::ShadowCheckFailed;
 
-    return hasOwn ? js::Shadows : js::DoesntShadow;
+    if (hasOwn) {
+      return isOverrideBuiltins ?
+        js::ShadowsViaIndirectExpando : js::ShadowsViaDirectExpando;
+    }
   }
 
-  if (v.isUndefined()) {
+  if (!isOverrideBuiltins) {
+    // Our expando, if any, didn't shadow, so we're not shadowing at all.
     return js::DoesntShadow;
   }
 
@@ -238,7 +243,6 @@ DOMProxyHandler::set(JSContext *cx, Handle<JSObject*> proxy, Handle<JSObject*> r
                             &desc)) {
     return false;
   }
-  bool descIsOwn = desc.object() != nullptr;
   if (!desc.object()) {
     // Don't just use getPropertyDescriptor, unlike BaseProxyHandler::set,
     // because that would call getOwnPropertyDescriptor on ourselves.  Instead,
@@ -252,8 +256,7 @@ DOMProxyHandler::set(JSContext *cx, Handle<JSObject*> proxy, Handle<JSObject*> r
     }
   }
 
-  return js::SetPropertyIgnoringNamedGetter(cx, this, proxy, receiver, id,
-                                            &desc, descIsOwn, vp, result);
+  return js::SetPropertyIgnoringNamedGetter(cx, proxy, id, vp, receiver, &desc, result);
 }
 
 bool

@@ -36,6 +36,7 @@ using namespace js::jit;
 using mozilla::PodArrayZero;
 
 using mozilla::DebugOnly;
+using mozilla::PodArrayZero;
 
 JSCompartment::JSCompartment(Zone* zone, const JS::CompartmentOptions& options = JS::CompartmentOptions())
   : options_(options),
@@ -409,17 +410,18 @@ JSCompartment::wrap(JSContext* cx, MutableHandleObject obj, HandleObject existin
     if (WrapperMap::Ptr p = crossCompartmentWrappers.lookup(CrossCompartmentKey(key))) {
         obj.set(&p->value().get().toObject());
         MOZ_ASSERT(obj->is<CrossCompartmentWrapperObject>());
-        MOZ_ASSERT(obj->getParent() == global);
+        obj->assertParentIs(global);
         return true;
     }
 
     RootedObject existing(cx, existingArg);
     if (existing) {
+        // existing is known to be a proxy, so we know its parent global.
+        existing->assertParentIs(global);
         // Is it possible to reuse |existing|?
         if (!existing->getTaggedProto().isLazy() ||
             // Note: Class asserted above, so all that's left to check is callability
             existing->isCallable() ||
-            existing->getParent() != global ||
             obj->isCallable())
         {
             existing = nullptr;
@@ -455,49 +457,20 @@ JSCompartment::wrap(JSContext* cx, MutableHandle<PropertyDescriptor> desc)
     return wrap(cx, desc.value());
 }
 
-bool
-JSCompartment::wrap(JSContext* cx, MutableHandle<PropDesc> desc)
-{
-    if (desc.isUndefined())
-        return true;
-
-    JSCompartment* comp = cx->compartment();
-
-    if (desc.hasValue()) {
-        RootedValue value(cx, desc.value());
-        if (!comp->wrap(cx, &value))
-            return false;
-        desc.setValue(value);
-    }
-    if (desc.hasGet()) {
-        RootedValue get(cx, desc.getterValue());
-        if (!comp->wrap(cx, &get))
-            return false;
-        desc.setGetter(get);
-    }
-    if (desc.hasSet()) {
-        RootedValue set(cx, desc.setterValue());
-        if (!comp->wrap(cx, &set))
-            return false;
-        desc.setSetter(set);
-    }
-    return true;
-}
-
 /*
- * This method marks pointers that cross compartment boundaries. It should be
- * called only for per-compartment GCs, since full GCs naturally follow pointers
- * across compartments.
+ * This method marks pointers that cross compartment boundaries. It is called in
+ * per-zone GCs (since full GCs naturally follow pointers across compartments)
+ * and when compacting to update cross-compartment pointers.
  */
 void
-JSCompartment::markCrossCompartmentWrappers(JSTracer* trc)
+JSCompartment::markCrossCompartmentWrappers(JSTracer *trc)
 {
-    MOZ_ASSERT(!zone()->isCollecting());
+    MOZ_ASSERT(!zone()->isCollecting() || trc->runtime()->isHeapCompacting());
 
     for (WrapperMap::Enum e(crossCompartmentWrappers); !e.empty(); e.popFront()) {
         Value v = e.front().value();
         if (e.front().key().kind == CrossCompartmentKey::ObjectWrapper) {
-            ProxyObject* wrapper = &v.toObject().as<ProxyObject>();
+            ProxyObject *wrapper = &v.toObject().as<ProxyObject>();
 
             /*
              * We have a cross-compartment wrapper. Its private pointer may

@@ -541,7 +541,7 @@ js::proxy_innerObject(JSObject* obj)
 }
 
 bool
-js::proxy_LookupProperty(JSContext* cx, HandleObject obj, HandleId id,
+js::proxy_LookupProperty(JSContext *cx, HandleObject obj, HandleId id,
                          MutableHandleObject objp, MutableHandleShape propp)
 {
     bool found;
@@ -559,8 +559,8 @@ js::proxy_LookupProperty(JSContext* cx, HandleObject obj, HandleId id,
 }
 
 bool
-js::proxy_DefineProperty(JSContext* cx, HandleObject obj, HandleId id, HandleValue value,
-                         PropertyOp getter, StrictPropertyOp setter, unsigned attrs,
+js::proxy_DefineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleValue value,
+                         GetterOp getter, SetterOp setter, unsigned attrs,
                          ObjectOpResult &result)
 {
     Rooted<PropertyDescriptor> desc(cx);
@@ -618,6 +618,8 @@ js::proxy_Trace(JSTracer* trc, JSObject* obj)
 ProxyObject::trace(JSTracer* trc, JSObject* obj)
 {
     ProxyObject* proxy = &obj->as<ProxyObject>();
+
+    MarkShape(trc, &proxy->shape, "ProxyObject_shape");
 
 #ifdef DEBUG
     if (trc->runtime()->gc.isStrictProxyCheckingEnabled() && proxy->is<WrapperObject>()) {
@@ -750,7 +752,7 @@ void
 ProxyObject::renew(JSContext* cx, const BaseProxyHandler* handler, Value priv)
 {
     MOZ_ASSERT_IF(IsCrossCompartmentWrapper(this), IsDeadProxyObject(this));
-    MOZ_ASSERT(getParent() == cx->global());
+    assertParentIs(cx->global());
     MOZ_ASSERT(getClass() == &ProxyObject::class_);
     MOZ_ASSERT(!getClass()->ext.innerObject);
     MOZ_ASSERT(hasLazyPrototype());

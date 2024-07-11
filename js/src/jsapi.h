@@ -880,7 +880,7 @@ class MOZ_STACK_CLASS SourceBufferHolder final
 #define JSPROP_PERMANENT        0x04    /* property cannot be deleted */
 #define JSPROP_PROPOP_ACCESSORS 0x08    /* Passed to JS_Define(UC)Property* and
                                            JS_DefineElement if getters/setters
-                                           are JSPropertyOp/JSStrictPropertyOp */
+                                           are JSGetterOp/JSSetterOp */
 #define JSPROP_GETTER           0x10    /* property holds getter function */
 #define JSPROP_SETTER           0x20    /* property holds setter function */
 #define JSPROP_SHARED           0x40    /* don't allocate a value slot for this
@@ -976,50 +976,6 @@ typedef js::Vector<CompartmentTimeStats, 0, js::SystemAllocPolicy> CompartmentSt
 
 extern JS_PUBLIC_API(bool)
 JS_GetCompartmentStats(JSRuntime* rt, CompartmentStatsVector& stats);
-
-/*
- * Format is a string of the following characters (spaces are insignificant),
- * specifying the tabulated type conversions:
- *
- *   b      bool            Boolean
- *   c      char16_t        ECMA uint16_t, Unicode character
- *   i      int32_t         ECMA int32_t
- *   j      int32_t         ECMA int32_t (used to be different)
- *   u      uint32_t        ECMA uint32_t
- *   d      double          IEEE double
- *   I      double          Integral IEEE double
- *   S      JSString *      Unicode string, accessed by a JSString pointer
- *   W      char16_t *      Unicode character vector, 0-terminated (W for wide)
- *   o      JSObject *      Object reference
- *   f      JSFunction *    Function private
- *   v      jsval           Argument value (no conversion)
- *   *      N/A             Skip this argument (no vararg)
- *   /      N/A             End of required arguments
- *
- * The variable argument list after format must consist of &b, &c, &s, e.g.,
- * where those variables have the types given above.  For the pointer types
- * char *, JSString *, and JSObject *, the pointed-at memory returned belongs
- * to the JS runtime, not to the calling native code.  The runtime promises
- * to keep this memory valid so long as argv refers to allocated stack space
- * (so long as the native function is active).
- *
- * Fewer arguments than format specifies may be passed only if there is a /
- * in format after the last required argument specifier and argc is at least
- * the number of required arguments.  More arguments than format specifies
- * may be passed without error; it is up to the caller to deal with trailing
- * unconverted arguments.
- */
-extern JS_PUBLIC_API(bool)
-JS_ConvertArguments(JSContext *cx, const JS::CallArgs &args, const char *format, ...);
-
-#ifdef va_start
-extern JS_PUBLIC_API(bool)
-JS_ConvertArgumentsVA(JSContext *cx, const JS::CallArgs &args, const char *format,
-                      va_list ap);
-#endif
-
-extern JS_PUBLIC_API(bool)
-JS_ConvertValue(JSContext *cx, JS::HandleValue v, JSType type, JS::MutableHandleValue vp);
 
 extern JS_PUBLIC_API(bool)
 JS_ValueToObject(JSContext* cx, JS::HandleValue v, JS::MutableHandleObject objp);
@@ -2134,10 +2090,10 @@ inline int
 CheckIsCharacterLiteral(const char (&arr)[N]);
 
 /* NEVER DEFINED, DON'T USE.  For use by JS_PROPERTYOP_GETTER only. */
-inline int CheckIsPropertyOp(JSPropertyOp op);
+inline int CheckIsGetterOp(JSGetterOp op);
 
 /* NEVER DEFINED, DON'T USE.  For use by JS_PROPERTYOP_SETTER only. */
-inline int CheckIsStrictPropertyOp(JSStrictPropertyOp op);
+inline int CheckIsSetterOp(JSSetterOp op);
 
 
 } // namespace detail
@@ -2156,11 +2112,11 @@ inline int CheckIsStrictPropertyOp(JSStrictPropertyOp op);
    (flags))
 
 #define JS_PROPERTYOP_GETTER(v) \
-  (static_cast<void>(sizeof(JS::detail::CheckIsPropertyOp(v))), \
+  (static_cast<void>(sizeof(JS::detail::CheckIsGetterOp(v))), \
    reinterpret_cast<JSNative>(v))
 
 #define JS_PROPERTYOP_SETTER(v) \
-  (static_cast<void>(sizeof(JS::detail::CheckIsStrictPropertyOp(v))), \
+  (static_cast<void>(sizeof(JS::detail::CheckIsSetterOp(v))), \
    reinterpret_cast<JSNative>(v))
 
 #define JS_STUBGETTER JS_PROPERTYOP_GETTER(JS_PropertyStub)
@@ -2286,9 +2242,6 @@ JS_GetPrototype(JSContext* cx, JS::HandleObject obj, JS::MutableHandleObject pro
 
 extern JS_PUBLIC_API(bool)
 JS_SetPrototype(JSContext* cx, JS::HandleObject obj, JS::HandleObject proto);
-
-extern JS_PUBLIC_API(JSObject*)
-JS_GetParent(JSObject* obj);
 
 extern JS_PUBLIC_API(JSObject*)
 JS_GetConstructor(JSContext* cx, JS::Handle<JSObject*> proto);
@@ -2504,8 +2457,8 @@ JS_GlobalObjectTraceHook(JSTracer* trc, JSObject* global);
 extern JS_PUBLIC_API(void)
 JS_FireOnNewGlobalObject(JSContext* cx, JS::HandleObject global);
 
-extern JS_PUBLIC_API(JSObject*)
-JS_NewObject(JSContext* cx, const JSClass* clasp, JS::Handle<JSObject*> parent = JS::NullPtr());
+extern JS_PUBLIC_API(JSObject *)
+JS_NewObject(JSContext *cx, const JSClass *clasp);
 
 /* Queries the [[Extensible]] property of the object. */
 extern JS_PUBLIC_API(bool)
@@ -2521,13 +2474,12 @@ JS_GetObjectRuntime(JSObject* obj);
  * Unlike JS_NewObject, JS_NewObjectWithGivenProto does not compute a default proto.
  * If proto is JS::NullPtr, the JS object will have `null` as [[Prototype]].
  */
-extern JS_PUBLIC_API(JSObject*)
-JS_NewObjectWithGivenProto(JSContext* cx, const JSClass* clasp, JS::Handle<JSObject*> proto,
-                           JS::Handle<JSObject*> parent = JS::NullPtr());
+extern JS_PUBLIC_API(JSObject *)
+JS_NewObjectWithGivenProto(JSContext *cx, const JSClass *clasp, JS::Handle<JSObject*> proto);
 
 // Creates a new plain object, like `new Object()`, with Object.prototype as [[Prototype]].
-extern JS_PUBLIC_API(JSObject*)
-JS_NewPlainObject(JSContext* cx);
+extern JS_PUBLIC_API(JSObject *)
+JS_NewPlainObject(JSContext *cx);
 
 /*
  * Freeze obj, and all objects it refers to, recursively. This will not recurse
@@ -2559,11 +2511,11 @@ JS_New(JSContext *cx, JS::HandleObject ctor, const JS::HandleValueArray &args);
 /*** Property descriptors ************************************************************************/
 
 struct JSPropertyDescriptor {
-    JSObject*          obj;
-    unsigned           attrs;
-    JSPropertyOp       getter;
-    JSStrictPropertyOp setter;
-    JS::Value          value;
+    JSObject *obj;
+    unsigned attrs;
+    JSGetterOp getter;
+    JSSetterOp setter;
+    JS::Value value;
 
     JSPropertyDescriptor()
       : obj(nullptr), attrs(0), getter(nullptr), setter(nullptr), value(JSVAL_VOID)
@@ -2582,6 +2534,24 @@ class PropertyDescriptorOperations
     const JSPropertyDescriptor * desc() const { return static_cast<const Outer*>(this)->extract(); }
 
   public:
+    // Descriptors with JSGetterOp/JSSetterOp are considered data
+    // descriptors. It's complicated.
+    bool isAccessorDescriptor() const { return hasGetterOrSetterObject(); }
+    bool isGenericDescriptor() const {
+        return (desc()->attrs &
+                (JSPROP_GETTER | JSPROP_SETTER | JSPROP_IGNORE_READONLY | JSPROP_IGNORE_VALUE)) ==
+               (JSPROP_IGNORE_READONLY | JSPROP_IGNORE_VALUE);
+    }
+    bool isDataDescriptor() const { return !isAccessorDescriptor() && !isGenericDescriptor(); }
+
+    bool hasConfigurable() const { return !hasAttributes(JSPROP_IGNORE_PERMANENT); }
+    bool configurable() const { MOZ_ASSERT(hasConfigurable()); return !isPermanent(); }
+    bool hasEnumerable() const { return !hasAttributes(JSPROP_IGNORE_ENUMERATE); }
+    bool enumerable() const { MOZ_ASSERT(hasEnumerable()); return isEnumerable(); }
+    bool hasValue() const { return !isAccessorDescriptor() && !hasAttributes(JSPROP_IGNORE_VALUE); }
+    bool hasWritable() const { return !isAccessorDescriptor() && !hasAttributes(JSPROP_IGNORE_READONLY); }
+    bool writable() const { MOZ_ASSERT(hasWritable()); return !isReadonly(); }
+
     bool isEnumerable() const { return desc()->attrs & JSPROP_ENUMERATE; }
     bool isReadonly() const { return desc()->attrs & JSPROP_READONLY; }
     bool isPermanent() const { return desc()->attrs & JSPROP_PERMANENT; }
@@ -2593,19 +2563,14 @@ class PropertyDescriptorOperations
     bool isIndex() const { return desc()->attrs & JSPROP_INDEX; }
     bool hasAttributes(unsigned attrs) const { return desc()->attrs & attrs; }
 
-    // Descriptors with JSPropertyOps are considered data descriptors. It's
-    // complicated.
-    bool isAccessorDescriptor() const { return hasGetterOrSetterObject(); }
-    bool isDataDescriptor() const { return !isAccessorDescriptor(); }
-
     bool isWritable() const { MOZ_ASSERT(isDataDescriptor()); return !isReadonly(); }
 
     JS::HandleObject object() const {
         return JS::HandleObject::fromMarkedLocation(&desc()->obj);
     }
     unsigned attributes() const { return desc()->attrs; }
-    JSPropertyOp getter() const { return desc()->getter; }
-    JSStrictPropertyOp setter() const { return desc()->setter; }
+    JSGetterOp getter() const { return desc()->getter; }
+    JSSetterOp setter() const { return desc()->setter; }
     JS::HandleObject getterObject() const {
         MOZ_ASSERT(hasGetterObject());
         return JS::HandleObject::fromMarkedLocation(
@@ -2627,7 +2592,6 @@ class MutablePropertyDescriptorOperations : public PropertyDescriptorOperations<
     JSPropertyDescriptor * desc() { return static_cast<Outer*>(this)->extractMutable(); }
 
   public:
-
     void clear() {
         object().set(nullptr);
         setAttributes(0);
@@ -2644,29 +2608,48 @@ class MutablePropertyDescriptorOperations : public PropertyDescriptorOperations<
         value().set(other.value);
     }
 
+    void setDataDescriptor(HandleValue v, unsigned attrs) {
+        MOZ_ASSERT((attrs & ~(JSPROP_ENUMERATE |
+                              JSPROP_PERMANENT |
+                              JSPROP_READONLY |
+                              JSPROP_IGNORE_ENUMERATE |
+                              JSPROP_IGNORE_PERMANENT |
+                              JSPROP_IGNORE_READONLY)) == 0);
+        object().set(nullptr);
+        setAttributes(attrs);
+        setGetter(nullptr);
+        setSetter(nullptr);
+        value().set(v);
+    }
+
     JS::MutableHandleObject object() {
         return JS::MutableHandleObject::fromMarkedLocation(&desc()->obj);
     }
-    unsigned& attributesRef() { return desc()->attrs; }
-    JSPropertyOp& getter() { return desc()->getter; }
-    JSStrictPropertyOp& setter() { return desc()->setter; }
+    unsigned &attributesRef() { return desc()->attrs; }
+    JSGetterOp &getter() { return desc()->getter; }
+    JSSetterOp &setter() { return desc()->setter; }
     JS::MutableHandleValue value() {
         return JS::MutableHandleValue::fromMarkedLocation(&desc()->value);
+    }
+    void setValue(JS::HandleValue v) {
+        MOZ_ASSERT(!(desc()->attrs & (JSPROP_GETTER | JSPROP_SETTER)));
+        attributesRef() &= ~JSPROP_IGNORE_VALUE;
+        value().set(v);
     }
 
     void setEnumerable() { desc()->attrs |= JSPROP_ENUMERATE; }
     void setAttributes(unsigned attrs) { desc()->attrs = attrs; }
 
-    void setGetter(JSPropertyOp op) {
+    void setGetter(JSGetterOp op) {
         MOZ_ASSERT(op != JS_PropertyStub);
         desc()->getter = op;
     }
-    void setSetter(JSStrictPropertyOp op) {
+    void setSetter(JSSetterOp op) {
         MOZ_ASSERT(op != JS_StrictPropertyStub);
         desc()->setter = op;
     }
-    void setGetterObject(JSObject* obj) { desc()->getter = reinterpret_cast<JSPropertyOp>(obj); }
-    void setSetterObject(JSObject* obj) { desc()->setter = reinterpret_cast<JSStrictPropertyOp>(obj); }
+    void setGetterObject(JSObject *obj) { desc()->getter = reinterpret_cast<JSGetterOp>(obj); }
+    void setSetterObject(JSObject *obj) { desc()->setter = reinterpret_cast<JSSetterOp>(obj); }
 
     JS::MutableHandleObject getterObject() {
         MOZ_ASSERT(this->hasGetterObject());
@@ -2738,10 +2721,10 @@ class MutableHandleBase<JSPropertyDescriptor>
 namespace JS {
 
 extern JS_PUBLIC_API(bool)
-ParsePropertyDescriptorObject(JSContext* cx,
-                              JS::HandleObject obj,
-                              JS::HandleValue descriptor,
-                              JS::MutableHandle<JSPropertyDescriptor> desc);
+ObjectToCompletePropertyDescriptor(JSContext *cx,
+                                   JS::HandleObject obj,
+                                   JS::HandleValue descriptor,
+                                   JS::MutableHandle<JSPropertyDescriptor> desc);
 
 } // namespace JS
 
@@ -3112,17 +3095,17 @@ JS_SetReservedSlot(JSObject* obj, uint32_t index, jsval v);
 /*
  * Functions and scripts.
  */
-extern JS_PUBLIC_API(JSFunction*)
-JS_NewFunction(JSContext* cx, JSNative call, unsigned nargs, unsigned flags,
-               JS::Handle<JSObject*> parent, const char* name);
+extern JS_PUBLIC_API(JSFunction *)
+JS_NewFunction(JSContext *cx, JSNative call, unsigned nargs, unsigned flags,
+               const char *name);
 
 /*
  * Create the function with the name given by the id. JSID_IS_STRING(id) must
  * be true.
  */
-extern JS_PUBLIC_API(JSFunction*)
-JS_NewFunctionById(JSContext* cx, JSNative call, unsigned nargs, unsigned flags,
-                   JS::Handle<JSObject*> parent, JS::Handle<jsid> id);
+extern JS_PUBLIC_API(JSFunction *)
+JS_NewFunctionById(JSContext *cx, JSNative call, unsigned nargs, unsigned flags,
+                   JS::Handle<jsid> id);
 
 namespace JS {
 
@@ -3884,6 +3867,40 @@ JS_SaveFrameChain(JSContext* cx);
 
 extern JS_PUBLIC_API(void)
 JS_RestoreFrameChain(JSContext* cx);
+
+namespace JS {
+
+/*
+ * This class can be used to store a pointer to the youngest frame of a saved
+ * stack in the specified JSContext. This reference will be picked up by any new
+ * calls performed until the class is destroyed, with the specified asyncCause,
+ * that must not be empty.
+ *
+ * Any stack capture initiated during these new calls will go through the async
+ * stack instead of the current stack.
+ *
+ * Capturing the stack before a new call is performed will not be affected.
+ *
+ * The provided chain of SavedFrame objects can live in any compartment,
+ * although it will be copied to the compartment where the stack is captured.
+ */
+class MOZ_STACK_CLASS JS_PUBLIC_API(AutoSetAsyncStackForNewCalls)
+{
+    JSContext *cx;
+    RootedObject oldAsyncStack;
+    RootedString oldAsyncCause;
+
+  public:
+    // The stack parameter cannot be null by design, because it would be
+    // ambiguous whether that would clear any scheduled async stack and make the
+    // normal stack reappear in the new call, or just keep the async stack
+    // already scheduled for the new call, if any.
+    AutoSetAsyncStackForNewCalls(JSContext *cx, HandleObject stack,
+                                 HandleString asyncCause);
+    ~AutoSetAsyncStackForNewCalls();
+};
+
+}
 
 /************************************************************************/
 
@@ -5188,6 +5205,20 @@ GetSavedFrameColumn(JSContext *cx, HandleObject savedFrame, uint32_t *columnp);
  */
 extern JS_PUBLIC_API(SavedFrameResult)
 GetSavedFrameFunctionDisplayName(JSContext *cx, HandleObject savedFrame, MutableHandleString namep);
+
+/*
+ * Given a SavedFrame JSObject, get its asyncCause string. Defaults to nullptr.
+ */
+extern JS_PUBLIC_API(SavedFrameResult)
+GetSavedFrameAsyncCause(JSContext *cx, HandleObject savedFrame, MutableHandleString asyncCausep);
+
+/*
+ * Given a SavedFrame JSObject, get its asyncParent SavedFrame object or nullptr
+ * if there is no asyncParent. The `asyncParentp` out parameter is _NOT_
+ * guaranteed to be in the cx's compartment. Defaults to nullptr.
+ */
+extern JS_PUBLIC_API(SavedFrameResult)
+GetSavedFrameAsyncParent(JSContext *cx, HandleObject savedFrame, MutableHandleObject asyncParentp);
 
 /*
  * Given a SavedFrame JSObject, get its parent SavedFrame object or nullptr if

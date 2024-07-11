@@ -56,9 +56,15 @@ JS_GetObjectFunction(JSObject* obj);
 extern JS_FRIEND_API(bool)
 JS_SplicePrototype(JSContext* cx, JS::HandleObject obj, JS::HandleObject proto);
 
-extern JS_FRIEND_API(JSObject*)
-JS_NewObjectWithUniqueType(JSContext* cx, const JSClass* clasp, JS::HandleObject proto,
-                           JS::HandleObject parent);
+extern JS_FRIEND_API(JSObject *)
+JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, JS::HandleObject proto);
+
+// Allocate an object in exactly the same way as JS_NewObjectWithGivenProto, but
+// without invoking the metadata callback on it.  This allows creation of
+// internal bookkeeping objects that are guaranteed to not have metadata
+// attached to them.
+extern JS_FRIEND_API(JSObject *)
+JS_NewObjectWithoutMetadata(JSContext *cx, const JSClass *clasp, JS::Handle<JSObject*> proto);
 
 extern JS_FRIEND_API(uint32_t)
 JS_ObjectCountDynamicSlots(JS::HandleObject obj);
@@ -116,6 +122,25 @@ JS_ObjectToOuterObject(JSContext* cx, JS::HandleObject obj);
 
 extern JS_FRIEND_API(JSObject*)
 JS_CloneObject(JSContext* cx, JS::HandleObject obj, JS::HandleObject proto);
+
+/*
+ * Copy the own properties of src to dst in a fast way.  src and dst must both
+ * be native and must be in the compartment of cx.  They must have the same
+ * class, the same parent, and the same prototype.  Class reserved slots will
+ * NOT be copied.
+ *
+ * dst must not have any properties on it before this function is called.
+ *
+ * src must have been allocated via JS_NewObjectWithoutMetadata so that we can
+ * be sure it has no metadata that needs copying to dst.  This also means that
+ * dst needs to have the compartment global as its parent.  This function will
+ * preserve the existing metadata on dst, if any.
+ */
+extern JS_FRIEND_API(bool)
+JS_InitializePropertiesFromCompatibleNativeObject(JSContext *cx,
+                                                  JS::HandleObject dst,
+                                                  JS::HandleObject src);
+
 
 extern JS_FRIEND_API(JSString*)
 JS_BasicObjectToString(JSContext* cx, JS::HandleObject obj);
@@ -307,16 +332,16 @@ namespace js {
  */
 
 extern JS_FRIEND_API(bool)
-proxy_LookupProperty(JSContext* cx, JS::HandleObject obj, JS::HandleId id, JS::MutableHandleObject objp,
+proxy_LookupProperty(JSContext *cx, JS::HandleObject obj, JS::HandleId id, JS::MutableHandleObject objp,
                     JS::MutableHandle<Shape*> propp);
 extern JS_FRIEND_API(bool)
-proxy_DefineProperty(JSContext* cx, JS::HandleObject obj, JS::HandleId id, JS::HandleValue value,
-                     JSPropertyOp getter, JSStrictPropertyOp setter, unsigned attrs,
+proxy_DefineProperty(JSContext *cx, JS::HandleObject obj, JS::HandleId id, JS::HandleValue value,
+                     JSGetterOp getter, JSSetterOp setter, unsigned attrs,
                      JS::ObjectOpResult &result);
 extern JS_FRIEND_API(bool)
-proxy_HasProperty(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* foundp);
+proxy_HasProperty(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool* foundp);
 extern JS_FRIEND_API(bool)
-proxy_GetProperty(JSContext* cx, JS::HandleObject obj, JS::HandleObject receiver, JS::HandleId id,
+proxy_GetProperty(JSContext *cx, JS::HandleObject obj, JS::HandleObject receiver, JS::HandleId id,
                   JS::MutableHandleValue vp);
 extern JS_FRIEND_API(bool)
 proxy_SetProperty(JSContext* cx, JS::HandleObject obj, JS::HandleObject receiver, JS::HandleId id,
@@ -496,15 +521,14 @@ GetAnyCompartmentInZone(JS::Zone* zone);
 namespace shadow {
 
 struct ObjectGroup {
-    const Class* clasp;
-    JSObject*   proto;
+    const Class *clasp;
+    JSObject    *proto;
+    JSCompartment *compartment;
 };
 
 struct BaseShape {
-    const js::Class* clasp_;
-    JSObject* parent;
-    JSObject* _1;
-    JSCompartment* compartment;
+    const js::Class *clasp_;
+    JSObject *parent;
 };
 
 class Shape {
@@ -516,13 +540,14 @@ public:
     static const uint32_t FIXED_SLOTS_SHIFT = 27;
 };
 
-// This layout is shared by all objects except for Typed Objects (which still
-// have a shape and group).
+// This layout is shared by all native objects. For non-native objects, the
+// group may always be accessed safely, and other members may be as well,
+// depending on the object's specific layout.
 struct Object {
-    shadow::Shape*      shape;
-    shadow::ObjectGroup* group;
-    JS::Value*          slots;
-    void*               _1;
+    shadow::ObjectGroup *group;
+    shadow::Shape       *shape;
+    JS::Value           *slots;
+    void                *_1;
 
     size_t numFixedSlots() const { return shape->slotInfo >> Shape::FIXED_SLOTS_SHIFT; }
     JS::Value* fixedSlots() const {
@@ -628,35 +653,28 @@ IsOuterObject(JSObject* obj) {
 }
 
 JS_FRIEND_API(bool)
-IsFunctionObject(JSObject* obj);
+IsFunctionObject(JSObject *obj);
 
 JS_FRIEND_API(bool)
-IsScopeObject(JSObject* obj);
+IsScopeObject(JSObject *obj);
 
 JS_FRIEND_API(bool)
-IsCallObject(JSObject* obj);
+IsCallObject(JSObject *obj);
 
-inline JSObject*
-GetObjectParent(JSObject* obj)
+JS_FRIEND_API(bool)
+CanAccessObjectShape(JSObject *obj);
+
+static MOZ_ALWAYS_INLINE JSCompartment *
+GetObjectCompartment(JSObject *obj)
 {
-    MOZ_ASSERT(!IsScopeObject(obj));
-    return reinterpret_cast<shadow::Object*>(obj)->shape->base->parent;
+    return reinterpret_cast<shadow::Object*>(obj)->group->compartment;
 }
 
-static MOZ_ALWAYS_INLINE JSCompartment*
-GetObjectCompartment(JSObject* obj)
-{
-    return reinterpret_cast<shadow::Object*>(obj)->shape->base->compartment;
-}
+JS_FRIEND_API(JSObject *)
+GetGlobalForObjectCrossCompartment(JSObject *obj);
 
-JS_FRIEND_API(JSObject*)
-GetObjectParentMaybeScope(JSObject* obj);
-
-JS_FRIEND_API(JSObject*)
-GetGlobalForObjectCrossCompartment(JSObject* obj);
-
-JS_FRIEND_API(JSObject*)
-GetPrototypeNoProxy(JSObject* obj);
+JS_FRIEND_API(JSObject *)
+GetPrototypeNoProxy(JSObject *obj);
 
 // Sidestep the activeContext checking implicitly performed in
 // JS_SetPendingException.
@@ -692,19 +710,22 @@ JS_FRIEND_API(JSFunction*)
 DefineFunctionWithReserved(JSContext* cx, JSObject* obj, const char* name, JSNative call,
                            unsigned nargs, unsigned attrs);
 
-JS_FRIEND_API(JSFunction*)
-NewFunctionWithReserved(JSContext* cx, JSNative call, unsigned nargs, unsigned flags,
-                        JSObject* parent, const char* name);
+JS_FRIEND_API(JSFunction *)
+NewFunctionWithReserved(JSContext *cx, JSNative call, unsigned nargs, unsigned flags,
+                        const char *name);
 
-JS_FRIEND_API(JSFunction*)
-NewFunctionByIdWithReserved(JSContext* cx, JSNative native, unsigned nargs, unsigned flags,
-                            JSObject* parent, jsid id);
+JS_FRIEND_API(JSFunction *)
+NewFunctionByIdWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
+                            jsid id);
 
 JS_FRIEND_API(const JS::Value&)
 GetFunctionNativeReserved(JSObject* fun, size_t which);
 
 JS_FRIEND_API(void)
 SetFunctionNativeReserved(JSObject* fun, size_t which, const JS::Value& val);
+
+JS_FRIEND_API(bool)
+FunctionHasNativeReserved(JSObject *fun);
 
 JS_FRIEND_API(bool)
 GetObjectProto(JSContext* cx, JS::HandleObject obj, JS::MutableHandleObject proto);
@@ -1138,14 +1159,23 @@ NukeCrossCompartmentWrappers(JSContext* cx,
  * The DOMProxyShadowsCheck function will be called to check if the property for
  * id should be gotten from the prototype, or if there is an own property that
  * shadows it.
- * If DoesntShadow is returned then the slot at listBaseExpandoSlot should
- * either be undefined or point to an expando object that would contain the own
- * property.
- * If DoesntShadowUnique is returned then the slot at listBaseExpandoSlot should
- * contain a private pointer to a ExpandoAndGeneration, which contains a
- * JS::Value that should either be undefined or point to an expando object, and
- * a uint32 value. If that value changes then the IC for getting a property will
- * be invalidated.
+ * * If ShadowsViaDirectExpando is returned, then the slot at
+ *   listBaseExpandoSlot contains an expando object which has the property in
+ *   question.
+ * * If ShadowsViaIndirectExpando is returned, then the slot at
+ *   listBaseExpandoSlot contains a private pointer to an ExpandoAndGeneration
+ *   and the expando object in the ExpandoAndGeneration has the property in
+ *   question.
+ * * If DoesntShadow is returned then the slot at listBaseExpandoSlot should
+ *   either be undefined or point to an expando object that would contain the
+ *   own property.
+ * * If DoesntShadowUnique is returned then the slot at listBaseExpandoSlot
+ *   should contain a private pointer to a ExpandoAndGeneration, which contains
+ *   a JS::Value that should either be undefined or point to an expando object,
+ *   and a uint32 value. If that value changes then the IC for getting a
+ *   property will be invalidated.
+ * * If Shadows is returned, that means the property is an own property of the
+ *   proxy but doesn't live on the expando object.
  */
 
 struct ExpandoAndGeneration {
@@ -1178,7 +1208,9 @@ typedef enum DOMProxyShadowsResult {
   ShadowCheckFailed,
   Shadows,
   DoesntShadow,
-  DoesntShadowUnique
+  DoesntShadowUnique,
+  ShadowsViaDirectExpando,
+  ShadowsViaIndirectExpando
 } DOMProxyShadowsResult;
 typedef DOMProxyShadowsResult
 (* DOMProxyShadowsCheck)(JSContext* cx, JS::HandleObject object, JS::HandleId id);
@@ -1189,6 +1221,11 @@ SetDOMProxyInformation(const void* domProxyHandlerFamily, uint32_t domProxyExpan
 const void* GetDOMProxyHandlerFamily();
 uint32_t GetDOMProxyExpandoSlot();
 DOMProxyShadowsCheck GetDOMProxyShadowsCheck();
+inline bool DOMProxyIsShadowing(DOMProxyShadowsResult result) {
+    return result == Shadows ||
+           result == ShadowsViaDirectExpando ||
+           result == ShadowsViaIndirectExpando;
+}
 
 /* Implemented in jsdate.cpp. */
 
@@ -2329,21 +2366,46 @@ struct JSTypedMethodJitInfo
                                                  have side-effects. */
 };
 
-static MOZ_ALWAYS_INLINE const JSJitInfo*
-FUNCTION_VALUE_TO_JITINFO(const JS::Value& v)
+namespace js {
+
+static MOZ_ALWAYS_INLINE shadow::Function *
+FunctionObjectToShadowFunction(JSObject *fun)
 {
-    MOZ_ASSERT(js::GetObjectClass(&v.toObject()) == js::FunctionClassPtr);
-    return reinterpret_cast<js::shadow::Function*>(&v.toObject())->jitinfo;
+    MOZ_ASSERT(GetObjectClass(fun) == FunctionClassPtr);
+    return reinterpret_cast<shadow::Function *>(fun);
 }
 
 /* Statically asserted in jsfun.h. */
-static const unsigned JS_FUNCTION_INTERPRETED_BIT = 0x1;
+static const unsigned JS_FUNCTION_INTERPRETED_BITS = 0x1001;
+
+// Return whether the given function object is native.
+static MOZ_ALWAYS_INLINE bool
+FunctionObjectIsNative(JSObject *fun)
+{
+    return !(FunctionObjectToShadowFunction(fun)->flags & JS_FUNCTION_INTERPRETED_BITS);
+}
+
+static MOZ_ALWAYS_INLINE JSNative
+GetFunctionObjectNative(JSObject *fun)
+{
+    MOZ_ASSERT(FunctionObjectIsNative(fun));
+    return FunctionObjectToShadowFunction(fun)->native;
+}
+
+} // namespace js
+
+static MOZ_ALWAYS_INLINE const JSJitInfo *
+FUNCTION_VALUE_TO_JITINFO(const JS::Value& v)
+{
+    MOZ_ASSERT(js::FunctionObjectIsNative(&v.toObject()));
+    return js::FunctionObjectToShadowFunction(&v.toObject())->jitinfo;
+}
 
 static MOZ_ALWAYS_INLINE void
 SET_JITINFO(JSFunction * func, const JSJitInfo* info)
 {
     js::shadow::Function* fun = reinterpret_cast<js::shadow::Function*>(func);
-    MOZ_ASSERT(!(fun->flags & JS_FUNCTION_INTERPRETED_BIT));
+    MOZ_ASSERT(!(fun->flags & js::JS_FUNCTION_INTERPRETED_BITS));
     fun->jitinfo = info;
 }
 
@@ -2542,17 +2604,15 @@ ForwardToNative(JSContext* cx, JSNative native, const JS::CallArgs& args);
  *
  * SetPropertyIgnoringNamedGetter is exposed to make it easier to override
  * set() in this way.  It carries out all the steps of BaseProxyHandler::set()
- * except the initial getOwnPropertyDescriptor()/getPropertyDescriptor() calls.
- * The caller must supply those results as the 'desc' and 'descIsOwn'
- * parameters.
+ * except the initial getOwnPropertyDescriptor() call.  The caller must supply
+ * that descriptor as the 'ownDesc' parameter.
  *
- * Implemented in jsproxy.cpp.
+ * Implemented in proxy/BaseProxyHandler.cpp.
  */
 JS_FRIEND_API(bool)
-SetPropertyIgnoringNamedGetter(JSContext* cx, const BaseProxyHandler* handler,
-                               JS::HandleObject proxy, JS::HandleObject receiver,
-                               JS::HandleId id, JS::MutableHandle<JSPropertyDescriptor> desc,
-                               bool descIsOwn, JS::MutableHandleValue vp,
+SetPropertyIgnoringNamedGetter(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
+                               JS::MutableHandleValue vp, JS::HandleObject receiver,
+                               JS::MutableHandle<JSPropertyDescriptor> ownDesc,
                                JS::ObjectOpResult &result);
 
 JS_FRIEND_API(void)

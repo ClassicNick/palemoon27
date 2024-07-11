@@ -344,11 +344,11 @@ DeclEnvObject::createTemplateObject(JSContext* cx, HandleFunction fun, gc::Initi
 
     // Assign a fixed slot to a property with the same name as the lambda.
     Rooted<jsid> id(cx, AtomToId(fun->atom()));
-    const Class* clasp = obj->getClass();
+    const Class *clasp = obj->getClass();
     unsigned attrs = JSPROP_ENUMERATE | JSPROP_PERMANENT | JSPROP_READONLY;
 
-    JSPropertyOp getter = clasp->getProperty;
-    JSStrictPropertyOp setter = clasp->setProperty;
+    JSGetterOp getter = clasp->getProperty;
+    JSSetterOp setter = clasp->setProperty;
     MOZ_ASSERT(getter != JS_PropertyStub);
     MOZ_ASSERT(setter != JS_StrictPropertyStub);
 
@@ -502,8 +502,8 @@ with_LookupProperty(JSContext* cx, HandleObject obj, HandleId id,
 }
 
 static bool
-with_DefineProperty(JSContext* cx, HandleObject obj, HandleId id, HandleValue value,
-                    JSPropertyOp getter, JSStrictPropertyOp setter, unsigned attrs,
+with_DefineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleValue value,
+                    JSGetterOp getter, JSSetterOp setter, unsigned attrs,
                     ObjectOpResult &result)
 {
     RootedObject actual(cx, &obj->as<DynamicWithObject>().object());
@@ -2581,15 +2581,15 @@ js::GetDebugScopeForFrame(JSContext* cx, AbstractFramePtr frame, jsbytecode* pc)
 }
 
 // See declaration and documentation in jsfriendapi.h
-JS_FRIEND_API(JSObject*)
-js::GetObjectEnvironmentObjectForFunction(JSFunction* fun)
+JS_FRIEND_API(JSObject *)
+js::GetObjectEnvironmentObjectForFunction(JSFunction *fun)
 {
     if (!fun->isInterpreted())
-        return fun->getParent();
+        return &fun->global();
 
-    JSObject* env = fun->environment();
+    JSObject *env = fun->environment();
     if (!env || !env->is<DynamicWithObject>())
-        return fun->getParent();
+        return &fun->global();
 
     return &env->as<DynamicWithObject>().object();
 }

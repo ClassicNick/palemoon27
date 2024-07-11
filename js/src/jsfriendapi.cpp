@@ -126,9 +126,8 @@ JS_SplicePrototype(JSContext* cx, HandleObject obj, HandleObject proto)
     return obj->splicePrototype(cx, obj->getClass(), tagged);
 }
 
-JS_FRIEND_API(JSObject*)
-JS_NewObjectWithUniqueType(JSContext* cx, const JSClass* clasp, HandleObject proto,
-                           HandleObject parent)
+JS_FRIEND_API(JSObject *)
+JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, HandleObject proto)
 {
     /*
      * Create our object with a null proto and then splice in the correct proto
@@ -136,13 +135,21 @@ JS_NewObjectWithUniqueType(JSContext* cx, const JSClass* clasp, HandleObject pro
      * ObjectGroup attached to our proto with information about our object, since
      * we're not going to be using that ObjectGroup anyway.
      */
-    RootedObject obj(cx, NewObjectWithGivenProto(cx, (const js::Class*)clasp, NullPtr(),
-                                                 parent, SingletonObject));
+    RootedObject obj(cx, NewObjectWithGivenProto(cx, (const js::Class *)clasp, NullPtr(),
+                                                 NullPtr(), SingletonObject));
     if (!obj)
         return nullptr;
     if (!JS_SplicePrototype(cx, obj, proto))
         return nullptr;
     return obj;
+}
+
+JS_FRIEND_API(JSObject *)
+JS_NewObjectWithoutMetadata(JSContext *cx, const JSClass *clasp, JS::Handle<JSObject*> proto)
+{
+    // Use an AutoEnterAnalysis to suppress invocation of the metadata callback.
+    AutoEnterAnalysis enter(cx);
+    return JS_NewObjectWithGivenProto(cx, clasp, proto);
 }
 
 JS_FRIEND_API(JSPrincipals*)
@@ -302,31 +309,31 @@ js::IsFunctionObject(JSObject* obj)
 }
 
 JS_FRIEND_API(bool)
-js::IsScopeObject(JSObject* obj)
+js::IsScopeObject(JSObject *obj)
 {
     return obj->is<ScopeObject>();
 }
 
 JS_FRIEND_API(bool)
-js::IsCallObject(JSObject* obj)
+js::IsCallObject(JSObject *obj)
 {
     return obj->is<CallObject>();
 }
 
-JS_FRIEND_API(JSObject*)
-js::GetObjectParentMaybeScope(JSObject* obj)
+JS_FRIEND_API(bool)
+js::CanAccessObjectShape(JSObject *obj)
 {
-    return obj->enclosingScope();
+    return obj->maybeShape() != nullptr;
 }
 
-JS_FRIEND_API(JSObject*)
-js::GetGlobalForObjectCrossCompartment(JSObject* obj)
+JS_FRIEND_API(JSObject *)
+js::GetGlobalForObjectCrossCompartment(JSObject *obj)
 {
     return &obj->global();
 }
 
-JS_FRIEND_API(JSObject*)
-js::GetPrototypeNoProxy(JSObject* obj)
+JS_FRIEND_API(JSObject *)
+js::GetPrototypeNoProxy(JSObject *obj)
 {
     MOZ_ASSERT(!obj->is<js::ProxyObject>());
     MOZ_ASSERT(!obj->getTaggedProto().isLazy());
@@ -412,13 +419,11 @@ js::DefineFunctionWithReserved(JSContext* cx, JSObject* objArg, const char* name
 
 JS_FRIEND_API(JSFunction*)
 js::NewFunctionWithReserved(JSContext* cx, JSNative native, unsigned nargs, unsigned flags,
-                            JSObject* parentArg, const char* name)
+                            const char *name)
 {
-    RootedObject parent(cx, parentArg);
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
 
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom atom(cx);
     if (name) {
@@ -428,23 +433,21 @@ js::NewFunctionWithReserved(JSContext* cx, JSNative native, unsigned nargs, unsi
     }
 
     JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, atom,
+    return NewFunction(cx, NullPtr(), native, nargs, funFlags, NullPtr(), atom,
                        JSFunction::ExtendedFinalizeKind);
 }
 
-JS_FRIEND_API(JSFunction*)
-js::NewFunctionByIdWithReserved(JSContext* cx, JSNative native, unsigned nargs, unsigned flags, JSObject* parentArg,
+JS_FRIEND_API(JSFunction *)
+js::NewFunctionByIdWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
                                 jsid id)
 {
-    RootedObject parent(cx, parentArg);
     MOZ_ASSERT(JSID_IS_STRING(id));
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom atom(cx, JSID_TO_ATOM(id));
     JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, atom,
+    return NewFunction(cx, NullPtr(), native, nargs, funFlags, NullPtr(), atom,
                        JSFunction::ExtendedFinalizeKind);
 }
 
@@ -461,6 +464,13 @@ js::SetFunctionNativeReserved(JSObject* fun, size_t which, const Value& val)
     MOZ_ASSERT(fun->as<JSFunction>().isNative());
     MOZ_ASSERT_IF(val.isObject(), val.toObject().compartment() == fun->compartment());
     fun->as<JSFunction>().setExtendedSlot(which, val);
+}
+
+JS_FRIEND_API(bool)
+js::FunctionHasNativeReserved(JSObject *fun)
+{
+    MOZ_ASSERT(fun->as<JSFunction>().isNative());
+    return fun->as<JSFunction>().isExtended();
 }
 
 JS_FRIEND_API(bool)

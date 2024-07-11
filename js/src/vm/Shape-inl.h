@@ -13,13 +13,13 @@
 
 #include "jsobj.h"
 
+#include "gc/Allocator.h"
 #include "vm/Interpreter.h"
 #include "vm/ScopeObject.h"
 #include "vm/TypedArrayCommon.h"
 
 #include "jsatominlines.h"
 #include "jscntxtinlines.h"
-#include "jsgcinlines.h"
 
 namespace js {
 
@@ -41,7 +41,7 @@ Shape::search(ExclusiveContext* cx, jsid id)
 }
 
 inline bool
-Shape::set(JSContext* cx, HandleNativeObject obj, HandleObject receiver, MutableHandleValue vp,
+Shape::set(JSContext *cx, HandleNativeObject obj, HandleObject receiver, MutableHandleValue vp,
            ObjectOpResult &result)
 {
     MOZ_ASSERT_IF(hasDefaultSetter(), hasGetterValue());
@@ -61,11 +61,11 @@ Shape::set(JSContext* cx, HandleNativeObject obj, HandleObject receiver, Mutable
         return result.succeed();
 
     RootedId id(cx, propid());
-    return CallJSPropertyOpSetter(cx, setterOp(), obj, id, vp, result);
+    return CallJSSetterOp(cx, setterOp(), obj, id, vp, result);
 }
 
-/* static */ inline Shape*
-Shape::search(ExclusiveContext* cx, Shape* start, jsid id, ShapeTable::Entry** pentry, bool adding)
+/* static */ inline Shape *
+Shape::search(ExclusiveContext *cx, Shape *start, jsid id, ShapeTable::Entry **pentry, bool adding)
 {
     if (start->inDictionary()) {
         *pentry = &start->table().search(id, adding);
@@ -105,11 +105,13 @@ Shape::search(ExclusiveContext* cx, Shape* start, jsid id, ShapeTable::Entry** p
     return nullptr;
 }
 
-inline Shape*
-Shape::new_(ExclusiveContext* cx, StackShape& unrootedOther, uint32_t nfixed)
+inline Shape *
+Shape::new_(ExclusiveContext *cx, StackShape& unrootedOther, uint32_t nfixed)
 {
     RootedGeneric<StackShape*> other(cx, &unrootedOther);
-    Shape* shape = other->isAccessorShape() ? NewGCAccessorShape(cx) : NewGCShape(cx);
+    Shape *shape = other->isAccessorShape()
+                   ? js::Allocate<AccessorShape>(cx)
+                   : js::Allocate<Shape>(cx);
     if (!shape) {
         ReportOutOfMemory(cx);
         return nullptr;
@@ -157,8 +159,8 @@ EmptyShape::ensureInitialCustomShape(ExclusiveContext* cx, Handle<ObjectSubclass
 }
 
 inline
-AutoRooterGetterSetter::Inner::Inner(ExclusiveContext* cx, uint8_t attrs,
-                                     PropertyOp* pgetter_, StrictPropertyOp* psetter_)
+AutoRooterGetterSetter::Inner::Inner(ExclusiveContext *cx, uint8_t attrs,
+                                     GetterOp *pgetter_, SetterOp *psetter_)
   : CustomAutoRooter(cx), attrs(attrs),
     pgetter(pgetter_), psetter(psetter_)
 {
@@ -167,8 +169,8 @@ AutoRooterGetterSetter::Inner::Inner(ExclusiveContext* cx, uint8_t attrs,
 }
 
 inline
-AutoRooterGetterSetter::AutoRooterGetterSetter(ExclusiveContext* cx, uint8_t attrs,
-                                               PropertyOp* pgetter, StrictPropertyOp* psetter
+AutoRooterGetterSetter::AutoRooterGetterSetter(ExclusiveContext *cx, uint8_t attrs,
+                                               GetterOp *pgetter, SetterOp *psetter
                                                MOZ_GUARD_OBJECT_NOTIFIER_PARAM_IN_IMPL)
 {
     if (attrs & (JSPROP_GETTER | JSPROP_SETTER))
@@ -177,13 +179,13 @@ AutoRooterGetterSetter::AutoRooterGetterSetter(ExclusiveContext* cx, uint8_t att
 }
 
 inline
-AutoRooterGetterSetter::AutoRooterGetterSetter(ExclusiveContext* cx, uint8_t attrs,
-                                               JSNative* pgetter, JSNative* psetter
+AutoRooterGetterSetter::AutoRooterGetterSetter(ExclusiveContext *cx, uint8_t attrs,
+                                               JSNative *pgetter, JSNative *psetter
                                                MOZ_GUARD_OBJECT_NOTIFIER_PARAM_IN_IMPL)
 {
     if (attrs & (JSPROP_GETTER | JSPROP_SETTER)) {
-        inner.emplace(cx, attrs, reinterpret_cast<PropertyOp*>(pgetter),
-                      reinterpret_cast<StrictPropertyOp*>(psetter));
+        inner.emplace(cx, attrs, reinterpret_cast<GetterOp *>(pgetter),
+                      reinterpret_cast<SetterOp *>(psetter));
     }
     MOZ_GUARD_OBJECT_NOTIFIER_INIT;
 }
