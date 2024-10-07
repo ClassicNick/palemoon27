@@ -1656,6 +1656,8 @@ SourceCompressionTask::complete()
         if (!ss->setCompressedSource(cx, mozilla::Move(compressedSource), compressedBytes,
                                      ss->length()))
         {
+            ss = nullptr;
+            MOZ_ASSERT(!active());
             return false;
         }
     } else {
