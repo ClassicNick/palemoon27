@@ -154,6 +154,10 @@ struct ShellRuntime
     JS::PersistentRootedValue interruptFunc;
     bool lastWarningEnabled;
     JS::PersistentRootedValue lastWarning;
+#ifdef SPIDERMONKEY_PROMISE
+    JS::PersistentRootedValue promiseRejectionTrackerCallback;
+    JS::PersistentRooted<JobQueue> jobQueue;
+#endif // SPIDERMONKEY_PROMISE
 
     /*
      * Watchdog thread state.
@@ -300,6 +304,9 @@ ShellRuntime::ShellRuntime(JSRuntime* rt)
     interruptFunc(rt, NullValue()),
     lastWarningEnabled(false),
     lastWarning(rt, NullValue()),
+#ifdef SPIDERMONKEY_PROMISE
+    promiseRejectionTrackerCallback(rt, NullValue()),
+#endif // SPIDERMONKEY_PROMISE
     watchdogLock(nullptr),
     watchdogWakeup(nullptr),
     watchdogThread(nullptr),
@@ -623,10 +630,12 @@ ShellEnqueuePromiseJobCallback(JSContext* cx, JS::HandleObject job, JS::HandleOb
     MOZ_ASSERT(job);
     return sr->jobQueue.append(job);
 }
+#endif // SPIDERMONKEY_PROMISE
 
 static bool
 DrainJobQueue(JSContext* cx)
 {
+#ifdef SPIDERMONKEY_PROMISE
     ShellRuntime* sr = GetShellRuntime(cx);
     if (sr->quitting)
         return true;
@@ -644,6 +653,7 @@ DrainJobQueue(JSContext* cx)
         sr->jobQueue[i].set(nullptr);
     }
     sr->jobQueue.clear();
+#endif // SPIDERMONKEY_PROMISE
     return true;
 }
 
@@ -657,7 +667,48 @@ DrainJobQueue(JSContext* cx, unsigned argc, Value* vp)
     args.rval().setUndefined();
     return true;
 }
+
+#ifdef SPIDERMONKEY_PROMISE
+static void
+ForwardingPromiseRejectionTrackerCallback(JSContext* cx, JS::HandleObject promise,
+                                          PromiseRejectionHandlingState state, void* data)
+{
+    RootedValue callback(cx, GetShellRuntime(cx)->promiseRejectionTrackerCallback);
+    if (callback.isNull()) {
+        return;
+    }
+
+    FixedInvokeArgs<2> args(cx);
+    args[0].setObject(*promise);
+    args[1].setInt32(static_cast<int32_t>(state));
+
+    RootedValue rval(cx);
+    if (!Call(cx, callback, UndefinedHandleValue, args, &rval))
+        JS_ClearPendingException(cx);
+}
 #endif // SPIDERMONKEY_PROMISE
+
+static bool
+SetPromiseRejectionTrackerCallback(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+#ifdef SPIDERMONKEY_PROMISE
+    if (!IsCallable(args.get(0))) {
+        JS_ReportError(cx,
+                       "setPromiseRejectionTrackerCallback expects a function as its sole "
+                       "argument");
+        return false;
+    }
+
+    GetShellRuntime(cx)->promiseRejectionTrackerCallback = args[0];
+    JS::SetPromiseRejectionTrackerCallback(cx->runtime(),
+                                           ForwardingPromiseRejectionTrackerCallback);
+
+#endif // SPIDERMONKEY_PROMISE
+    args.rval().setUndefined();
+    return true;
+}
 
 static bool
 EvalAndPrint(JSContext* cx, const char* bytes, size_t length,
@@ -755,6 +806,9 @@ ReadEvalPrintLoop(JSContext* cx, FILE* in, bool compileOnly)
                   "for you.\nWarning: This nicety only happens in the JS shell.\n",
                   stderr);
         }
+
+        DrainJobQueue(cx);
+
     } while (!hitEOF && !sr->quitting);
 
     if (gOutFile->isOpen())
@@ -904,6 +958,45 @@ CreateMappedArrayBuffer(JSContext* cx, unsigned argc, Value* vp)
 
     args.rval().setObject(*obj);
     return true;
+}
+
+static bool
+AddPromiseReactions(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    if (args.length() != 3) {
+        JS_ReportErrorNumber(cx, my_GetErrorMessage, nullptr,
+                             args.length() < 3 ? JSSMSG_NOT_ENOUGH_ARGS : JSSMSG_TOO_MANY_ARGS,
+                             "addPromiseReactions");
+        return false;
+    }
+
+    RootedObject promise(cx);
+    if (args[0].isObject())
+        promise = &args[0].toObject();
+
+    if (!promise || !JS::IsPromiseObject(promise)) {
+        JS_ReportErrorNumber(cx, my_GetErrorMessage, nullptr,
+                             JSSMSG_INVALID_ARGS, "addPromiseReactions");
+        return false;
+    }
+
+    RootedObject onResolve(cx);
+    if (args[1].isObject())
+        onResolve = &args[1].toObject();
+
+    RootedObject onReject(cx);
+    if (args[2].isObject())
+        onReject = &args[2].toObject();
+
+    if (!onResolve || !onResolve->is<JSFunction>() || !onReject || !onReject->is<JSFunction>()) {
+        JS_ReportErrorNumber(cx, my_GetErrorMessage, nullptr,
+                             JSSMSG_INVALID_ARGS, "addPromiseReactions");
+        return false;
+    }
+
+    return JS::AddPromiseReactions(cx, promise, onResolve, onReject);
 }
 
 static bool
@@ -5462,6 +5555,10 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
 "createMappedArrayBuffer(filename, [offset, [size]])",
 "  Create an array buffer that mmaps the given file."),
 
+    JS_FN_HELP("addPromiseReactions", AddPromiseReactions, 3, 0,
+"addPromiseReactions(promise, onResolve, onReject)",
+"  Calls the JS::AddPromiseReactions JSAPI function with the given arguments."),
+
     JS_FN_HELP("getMaxArgs", GetMaxArgs, 0, 0,
 "getMaxArgs()",
 "  Return the maximum number of supported args for a call."),
@@ -5534,6 +5631,16 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
 "operation. Each element is the name of the function invoked, or the\n"
 "string 'eval:FILENAME' if the code was invoked by 'eval' or something\n"
 "similar.\n"),
+
+    JS_FN_HELP("drainJobQueue", DrainJobQueue, 0, 0,
+"drainJobQueue()",
+"Take jobs from the shell's job queue in FIFO order and run them until the\n"
+"queue is empty.\n"),
+
+    JS_FN_HELP("setPromiseRejectionTrackerCallback", SetPromiseRejectionTrackerCallback, 1, 0,
+"setPromiseRejectionTrackerCallback()",
+"Sets the callback to be invoked whenever a Promise rejection is unhandled\n"
+"or a previously-unhandled rejection becomes handled."),
 
     JS_FS_HELP_END
 };
@@ -6633,6 +6740,8 @@ ProcessArgs(JSContext* cx, OptionParser* op)
         if (sr->exitCode)
             return sr->exitCode;
     }
+
+    DrainJobQueue(cx);
 
     if (op->getBoolOption('i'))
         Process(cx, nullptr, true);

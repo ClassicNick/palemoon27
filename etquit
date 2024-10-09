@@ -1,0 +1,228 @@
+[33mcommit 39f4dc74756807eb43f03d7b5df70753448a8163[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mVC2015[m[33m)[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 11:24:51 2024 +0200
+
+    Bug 1277176 - Remove CircularByteBuffer from AudioStream.h. r=kaku.
+
+[33mcommit 52888e7f27f5d90f15e611bdb44f3ba91ef08cfd[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 11:09:03 2024 +0200
+
+    Bug 1264948 - Make it possible to use a placement-new with a fallible TempAllocator. r=h4writer
+
+[33mcommit b14ac1fa7f54b847cc55dd922f2c0bb045bee2d6[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 11:03:35 2024 +0200
+
+    Bug 1264948 - Ensure that we have enough ballast space IonMonkey compilation. r=h4writer
+
+[33mcommit 23e7d8521368889cf07260fcc7ea4d490e11835e[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 09:50:55 2024 +0200
+
+    Bug 1274612 - Check callers have exclusive access lock at compile time r=terrence
+
+[33mcommit d825c8a28cb6578c36e9cffce4d07888c92409ec[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 01:45:44 2024 +0200
+
+    Bug 1274065 - Fix possible assertion failure in pre-barrier verifier r=terrence
+
+[33mcommit d9eaf88d176b3d93555f71d9965da3b1ac2fb85a[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 01:44:50 2024 +0200
+
+    Bug 1271609 - Make ReleaseAllJITCode call Zone::discardJitCode instead of duplicating it. r=jonco
+
+[33mcommit e762bdcc40ba084aff043e271983756a052a2808[m
+Author: Riccardo Mottola <rm@gnu.org>
+Date:   Tue Oct 8 01:41:59 2024 +0200
+
+    Bug 1232417 - Followup to fix unexpected S bustage on a CLOSED TREE; r=meow
+
+[33mcommit b479cbba51fb4c15c6505ab0816748e5f6ed7e8e[m[33m ([m[1;31morigin/VC2015[m[33m)[m
+Author: Nicholas <75703478+ClassicNick@users.noreply.github.com>
+Date:   Thu Apr 3 17:56:18 2025 -0300
+
+    Replace "wwc" with static_cast<const wchar16_t*>
+
+[33mcommit 85227499569c5ca7052e99e5cf76df4fb37898d2[m
+Author: Nicholas <75703478+ClassicNick@users.noreply.github.com>
+Date:   Thu Apr 3 17:53:49 2025 -0300
+
+    Update config/msvc-stl-wrapper.template.h
+
+[33mcommit 7069f600b4fd513f78b975508cc6c5799d9a8bb7[m
+Author: Nicholas <75703478+ClassicNick@users.noreply.github.com>
+Date:   Thu Apr 3 17:51:27 2025 -0300
+
+    Update msvc_raise_wrappers.h
+    
+    In memory/mozalloc
+
+[33mcommit a317c10e5d807808dfa6425a42b53e7365b24a24[m
+Merge: cde511de128 a1c5b61c5ff
+Author: Nicholas <75703478+ClassicNick@users.noreply.github.com>
+Date:   Thu Apr 3 17:47:30 2025 -0300
+
+    Merge branch 'roytam1:master' into Dev-VC2013
+
+[33mcommit a1c5b61c5ffe97cef9a7503a8f5d52fc52627c1b[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Fri Dec 20 15:52:59 2024 +0800
+
+    import from `custom` branch of UXP: nss: update nssckbi to 2.72 (e26468c8)
+
+[33mcommit 7acdcb46f3a9a23393451509b9c9df294b001228[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Fri Dec 20 15:51:51 2024 +0800
+
+    import from UXP: [NSS] Bug 1899402 - Correctly destroy bulkkey in error scenario. r=jschanck (e8252090)
+
+[33mcommit 7e33466370992a4cebb0841141708feeaef68910[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Fri Dec 20 15:49:18 2024 +0800
+
+    ported from `custom` branch of UXP: [network] Update effective TLD names list from esr128.
+
+[33mcommit 39770f32135f6cdb66fcddbca8fdad1474d9ae73[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Wed Oct 9 21:36:44 2024 +0800
+
+    import changes from `dev' branch of rmottola/Arctic-Fox:
+    - Bug 1274192 part 1 - make the MediaDecoderReaderWrapper as a proxy of WaitForData(); r=jwwang (9debdca9a9)
+    - Bug 1274192 part 2 - make MDSM and SeekTask to adopt new MediaDecoderReaderWrapper API; r=jwwang (156f924dc9)
+    - Bug 1276495: Don't reset audio promises for video only seek. r=jwwang,jya (c4632c7ff6)
+    - Bug 1276318, part 1 - Fix leading tabs in ipc/glue. r=billm (46bcc4ccb3)
+    - Bug 1035125 Part 6: Take Chromium commit 3181ba39ee787e1b40f4aea4be23f4f666ad0945 to add Windows 10 version to enumeration. r=aklotz (af62c8065f)
+    - Bug 1270752 - Fix lifetime of buffer passed to PR_SetEnv(). r=jduell (bfce06ebea)
+    - Bug 1275117 - Fix static strings leaks when mozlogging is on. r=jduell (8e9066c5d7)
+    - Bug 1273048 - Add MOZ_GCC_VERSION_AT_MOST macro. r=froydnj (cfb5acdbe6)
+    - Bug 1269968 - Remove unnecessary deduction on RefPtr.h. r=froydnj (30cf9bbf47)
+    - Bug 525063 - add attribute to mark member variables that should be skipped by clang plugin initialization checker. r=nfroyd (78aa863f88)
+    - Bug 1278391 - add move constructor to EnumeratedArray (r=njn) (5effe4e473)
+    - Bug 1268518: Update basic-integer tests for rotations + clean up; r=sunfish (46827b6211)
+    - Bug 1270370 - Part 1: Move SetIteratorObject to MapObject.h; r=jorendorff (01a27fbd50)
+    - Bug 1270370 - Part 2: Expose MapIterator and SetIterator through ESClassValues; r=jorendorff (3edb3c7551)
+    - Bug 1267551 (part 3) - Use MOZ_MUST_USE more in js/src/builtin/. r=jonco. (ea96d0fae0)
+    - Bug 1267551 (part 4) - Use MOZ_MUST_USE more in js/src/asmjs/. r=bbouvier. (3e622c736d)
+    - Bug 1268910: Refactor WebAssembly trap handling; r=luke (b59394a287)
+    - Bug 1268910: Trap on edge cases for integer div/mod; r=sunfish (3d85230cc8)
+    - Bug 1267551 (part 5) - Use MOZ_MUST_USE more in js/src/ctypes/. r=sfink. (e6580fb645)
+    - Bug 1267551 (part 6) - Remove dead GenerateBlockId declaration. r=jorendorff. (74afcc549e)
+    - Bug 1240072 - Add public JS APIs related to modules r=shu Bug 1267551 (part 7) - Use MOZ_MUST_USE more in js/src/frontend/. r=jorendorff. (5275c57768)
+    - Bug 1267551 (part 8) - Use MOZ_MUST_USE more in js/src/gc/. r=terrence. (2572cc1c58)
+    - Bug 1261063 - Part 1 - Remove public Telemetry functions that return raw histogram instances. r=chutten (3a68653c8f)
+    - Bug 1261063 - Part 2 - Expose C++ function to clear Telemetry histograms. r=chutten (1f42f6aa1e)
+    - Bug 1261063 - Part 3 - Make RasterImage use the public Telemetry API. r=tnikkel (0f564f3836)
+    - Bug 1261063 - Part 4 - Use a count histogram for WebRTC call counts. r=jesup (b6b7b649e0)
+    - Bug 1270073 - Point to Telemetry documentation in Telemetry.h. r=chutten (517279b284)
+    - Bug 1261052 - Move C++ histogram implementation code into a separate module. r=gfritzsche. (66bcb1e167)
+    - Bug 1145164 - Allow non-unitary increments to count histograms. r=gfritzsche (507e076e28)
+    - Bug 1173447 - Add test for incremental pre-barriers when storing things under roots, r=jonco (caf8bd16be)
+    - Bug 1267551 (part 10) - Use MOZ_MUST_USE in AutoVectorRooterBase. r=terrence. (2c5ed87a9f)
+    - This catches a missing check. (b2fcd30fc5)
+    - Bug 1267551 (part 11b) - Follow-up to fix Android bustage. r=me (f464ca7b98)
+    - Bug 1271854 - Part 1: Allow specifying multiple GC zeal levels; r=terrence (da3c3e1281)
+    - Bug 1271854 - Part 2: Allow specifying zeal modes by name as well; r=terrence (f63926e45b)
+    - Bug 1271854 - Part 3: Avoid saving the GC zeal string inside the JS shell; r=terrence (f09b262e55)
+    - Bug 1270062 - Unbust Windows full duplex. a=Tomcat (3c8b5887b6)
+    - Bug 1270062 - Update libcubeb. rs=jesup (71805cb0e0)
+    - Bug 1270004 - Update libcubeb. rs=jesup (2d90b9662f)
+    - Bug 1280280 - Update cubeb to 073c9f011114. r=kinetik (6bee6a7f21)
+    - Bug 1280280 - Update media/libcube/update.sh to add cubeb_jack.cpp, and sort the list of files. r=kinetik (430b7533c4)
+    - Bug 1272604 - Add a zeal mode to check the heap after a moving GC r=terrence (85c018d71f)
+    - Bug 1272604 - Fix bad implicit conversion constructor build error r=me (5c4e1dbc44)
+    - Bug 1272604 - Fix hazard analysis failure r=me (0591aa2dca)
+    - Bug 1232417 - Use a Variant to represent the CrossCompartmentWrapperMap key; r=jonco (512da0bab3)
+    - Bug 1269928 - Fold DirectProxyHandler into Wrapper, which is now its only (non-test) consumer. r=efaust (7c6bb6e898)
+    - Bug 1273639 - Add a nonunified spidermonkey build, r=terrence (d6fa13545c)
+    - Bug 1273639 - Fix nonunified spidermonkey builds, r=terrence (3e0544510d)
+    - Bug 1273180 - Trigger major GC if necessary after minor GC r=terrence (a9a9be8b17)
+    - Bug 1268992 - Assert that the heap is empty after a shutdown GC; r=jonco (fe3ac5bdd6)
+    - Bug 1273908 - Refactor GC to make it easier to add new kinds of GC thing r=terrence (51c92e1b05)
+
+[33mcommit ef3af9173bd2395bb51b6286c61fce72afdb448d[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Wed Oct 9 07:22:03 2024 +0800
+
+    import changes from `dev' branch of rmottola/Arctic-Fox:
+    - Bug 777067 - "Fuzzing: IPC Protocol Definition Language (IPDL) Protocols". r=wmccloskey (248c48ba96)
+    - Bug 1269056: Part 1 - Implement a rough PostDelayedTask equivalent on nsThread. r=froydnj (f9d8694b4d)
+    - Bug 1269056: Part 2 - Consolidate XPCOM and chromium event queues for non-main nsThreads. r=froydnj (14e156126b)
+    - Bug 1269056: Part 3 - Consolidate XPCOM and chromium event queues for the main thread. r=froydnj (90e5dabb4d)
+    - Bug 1271102 - Revert back to 256 MiB message limit. r=billm (d71cb26d74)
+    - Bug 950401 - Add process logging to OS X / BSD. r=bsmedberg (f3819e7f3b)
+    - Bug 1269319 - Make AlignedStorage/AlignedStorage2 non-copyable to fix strict aliasing issues. r=Waldo (d86ae927e1)
+    - Bug 1268754 - Tweak some MFBT return values. r=Ms2ger. (a71415c34e)
+    - Bug 1269317 - Don't use AlignedStorage2 in RegisterSets.h. r=nbp (f628be93a2)
+    - Bug 1269319 followup - Don't swap an entry with itself to avoid Variant self assignment. r=bustage (929bc926ca)
+    - mfbt: Alignment.h: partly disable changes of Bug 1269319 for VC2013 or older as they can't handle this. (253e78c5e6)
+
+[33mcommit 81a1b46bb302ade5227ff27246ba96c1c56fb096[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Tue Oct 8 23:53:21 2024 +0800
+
+    import changes from `dev' branch of rmottola/Arctic-Fox:
+    - Bug 1261900: [webm] Use block duration if known. r=kinetik (0455c4de93)
+    - Bug 1261900: [MSE] P2. Prevent assertion if first media segment contains no usable frames. r=gerald (a1cdf83be3)
+    - Bug 1261900: P3. Re-add MediaDataDemuxer::GetEvictionOffset() API. r=gerald (fc45da3ca8)
+    - Bug 1261900: [MSE] P4. Only evict no longer used data from resource. r=gerald (d3e3c59f4c)
+    - Bug 1261900: [MSE/webm] P5. Re-add WebMTrackDemuxer::GetEvictionOffset. r=gerald (ee8fd8e5dc)
+    - Bug 1261900: [MSE/webm] P6. Don't unnecessarily calculate the next keyframe time. r=kinetik (aa9345d6eb)
+    - Bug 1261900: [webm] P9. Prevent null deref when webm logs are turned on. r=kinetik (dfe061a463)
+    - Bug 1261900 - Allow WebMDemuxer to resume demuxing even after encountering EOS. r=jya (65bd6409fd)
+    - Bug 1274445: [webm] P1. Track separately audio track from video track. r=kinetik (35f04cd778)
+    - Bug 1274445: P2. Don't unnecessarily reset the decoder context. r=kamidphish (eaa0d94c25)
+    - Bug 1275807 - Remove remaining use of FlushableTaskQueue. r=cpearce. (d0834f0a03)
+    - Bug 1272225. Part 3 - remove use of FlushableTaskQueue. r=jya. (ed25bc636f)
+    - Bug 1274205 - remove use of FlushableTaskQueue. r=bechen. (9f340e7a97)
+    - Bug 1274214 - remove use of FlushableTaskQueue. r=kaku. (1c90ec8e7f)
+    - Bug 1266644 - Remove unused codes. r=jesup r=pehrsons (ffb303f3ee)
+    - Bug 1266647 - Clean NotifyQueuedTrackChange to only notify when command is track create and track end. r=jesup r=pehrsons (2ed23f22f0)
+
+[33mcommit 93f846cd1f5ff13cb46ec74045b3768b3c60e70b[m
+Author: roytam1 <roytam@gmail.com>
+Date:   Tue Oct 8 23:23:56 2024 +0800
+
+    import changes from `dev' branch of rmottola/Arctic-Fox:
+    - Bug 1275016 - Rename Endian.h to EndianUtils.h to avoid #include confusion with Android's endian.h stdlib header. r=froydnj (b54a25f572)
+    - add crashreporter stuff (aa7ef15337)
+    - Bug 1261168 - Add AlignedAutoTArray type in Web Audio; r=padenot (285d2cb88b)
+    - Bug 1273390. Part 1 - move some functions to private. r=jya. (07a3037e59)
+    - Bug 1273390. Part 2 - add assertions. r=jya. (2cae7c596a)
+    - Bug 1273390. Part 3 - rename some functions to be consistent with other sub-classes of MediaDataDecoder. r=jya. (c48c7060ce)
+    - Bug 1273390. Part 4 - remove use of FlushableTaskQueue::Flush(). r=jya. (00565a65f4)
+    - Bug 1273390. Part 5 - remove use of FlushableTaskQueue. r=jya. (30600b204e)
+    - Bug 1273774. Part 1 - remove unused members and thread assertions. r=jya (f5177ed641)
+    - Bug 1273774. Part 2 - do decoding jobs synchronously without dispatching. r=jya. (62d840d27c)
+    - Bug 1273774. Part 3 - remove members no longer used. r=jya. (e957ca512a)
+    - Bug 1244410: [ffmpeg] Ensure the last drained frame has the proper duration set. r=gerald (d5521bfdd4)
+    - Bug 1271508. Part 1 - refactor FFmpegAudioDecoder code to be similar to FFmpegVideoDecoder::Input() so it would be easier to extract common code to the parent class. r=jya. (613e6c624c)
+    - Bug 1271508. Part 2 - rename functions so they are the same as those of FFmpegAudioDecoder so it would be easier to extract common code to the parent class. r=jya. (cb281cba26)
+    - Bug 1270350 - per comment 0, use SyncRunnable to repalce the boilerplate code. r=jya. (b99460e571)
+    - Bug 1271508. Part 3 - extract code to the parent class and remove use of mTaskQueue from sub-classes. r=jya. (2a7ff4dd1e)
+    - Bug 1274216 - remove use of FlushableTaskQueue from PlatformDecoderModule. r=jya. (eb160c5fa2)
+    - Bug 1271517. Part 1 - remove use of FlushableTaskQueue::Flush() from FFmpegDataDecoder::Flush(). r=jya. (fdf10da4ab)
+    - Bug 1271517. Part 2 - remove use of FlushableTaskQueue. r=jya. (a7016d8506)
+    - Bug 1273397. Part 1 - rename some functions to be consistent with other MediaDataDecoder sub-classes. r=jya. (7eecb164be)
+    - Bug 1273397. Part 2 - constify some members. r=jya. (e4482f9a23)
+    - Bug 1273397. Part 3 - remove use of FlushableTaskQueue::Flush(). r=jya. (0b7ee073fe)
+    - Bug 1273397. Part 4 - remove use of FlushableTaskQueue. r=jya. (6a612161d5)
+    - Bug 1273397. Part 5 - add assertions. r=jya. (ff3a62a6fb)
+    - Bug 1274199 - remove use of FlushableTaskQueue. r=cpearce. (adc4c84ede)
+    - Bug 1273405. Part 1 - rename some functions to be consistent with other MediaDataDecoder sub-classes. r=jya. (af123d6c21)
+    - Bug 1273405. Part 2 - remove use of FlushableTaskQueue::Flush(). r=jya. (2d144bfbcd)
+    - Bug 1273405. Part 3 - remove use of FlushableTaskQueue. r=jya. (1e9ea3c2c7)
+    - Bug 1273405. Part 4 - add assertions. r=jya. (b400647323)
+    - Bug 1271491: [WMF] P1. Don't use main thread only preferences methods. r=cpearce (7177454dfb)
+    - Bug 1262427. Don't try D3D11 harder. r=dvander (404147d6fa)
+    - Use gfxConfig for D3D9 preferences. (bug 1270650, r=jrmuizel) (40d89c154c)
+    - Bug 1271491: P2. Allow initialization of WMFPlatformDecoderModule from any threads. r=mattwoodrow (c8fe0bf009)
+    - Bug 1271491: P3. Remove refcounting the number of time apple's linkers are called. r=cpearce (0324ffe876)
+    - Bug 1271491: [ffmpeg] P4. Remove requirements to call Init on the main thread. r=cpearce (b511d7dfd5)
+    - Bug 1271491: [GMP] P5. Allow GMPDecoderModule::Init() to be called off the main thread. r=cpearce (2131eb0b2e)
+    - Bug 1266102 - Don't run VP9 benchmark on Android r=jya (57d7b573fe)
+    - Bug 1271491: P6. Remove the need to call PDMFactory::Init(). r=cpearce (5726cfe49c)
+    - Bug 1271491: P7. Remove unused members. r=alfredo (0f8a9dde73)
+    - Bug 1268905 - Disable D3D11 with some Toshiba DLLs - r=cpearce (b5bf77442
