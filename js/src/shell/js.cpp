@@ -614,6 +614,51 @@ RunModule(JSContext* cx, const char* filename, FILE* file, bool compileOnly)
     }
 }
 
+#ifdef SPIDERMONKEY_PROMISE
+static bool
+ShellEnqueuePromiseJobCallback(JSContext* cx, JS::HandleObject job, JS::HandleObject allocationSite,
+                               void* data)
+{
+    ShellRuntime* sr = GetShellRuntime(cx);
+    MOZ_ASSERT(job);
+    return sr->jobQueue.append(job);
+}
+
+static bool
+DrainJobQueue(JSContext* cx)
+{
+    ShellRuntime* sr = GetShellRuntime(cx);
+    if (sr->quitting)
+        return true;
+    RootedObject job(cx);
+    JS::HandleValueArray args(JS::HandleValueArray::empty());
+    RootedValue rval(cx);
+    // Execute jobs in a loop until we've reached the end of the queue.
+    // Since executing a job can trigger enqueuing of additional jobs,
+    // it's crucial to re-check the queue length during each iteration.
+    for (size_t i = 0; i < sr->jobQueue.length(); i++) {
+        job = sr->jobQueue[i];
+        AutoCompartment ac(cx, job);
+        if (!JS::Call(cx, UndefinedHandleValue, job, args, &rval))
+            JS_ReportPendingException(cx);
+        sr->jobQueue[i].set(nullptr);
+    }
+    sr->jobQueue.clear();
+    return true;
+}
+
+static bool
+DrainJobQueue(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    if (!DrainJobQueue(cx))
+        return false;
+    args.rval().setUndefined();
+    return true;
+}
+#endif // SPIDERMONKEY_PROMISE
+
 static bool
 EvalAndPrint(JSContext* cx, const char* bytes, size_t length,
              int lineno, bool compileOnly)
