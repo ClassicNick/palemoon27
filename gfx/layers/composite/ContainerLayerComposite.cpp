@@ -322,8 +322,8 @@ ContainerRenderVR(ContainerT* aContainer,
     }
   }
 
-  gfx::Rect rect(surfaceRect.x, surfaceRect.y, surfaceRect.width, surfaceRect.height);
-  gfx::Rect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
+  gfx::IntRect rect(surfaceRect.x, surfaceRect.y, surfaceRect.width, surfaceRect.height);
+  gfx::IntRect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
 
   // The VR geometry may not cover the entire area; we need to fill with a solid color
   // first.
@@ -332,7 +332,7 @@ ContainerRenderVR(ContainerT* aContainer,
   // the entire rect)
   EffectChain solidEffect(aContainer);
   solidEffect.mPrimaryEffect = new EffectSolidColor(Color(0.0, 0.0, 0.0, 1.0));
-  aManager->GetCompositor()->DrawQuad(rect, rect, solidEffect, 1.0, gfx::Matrix4x4());
+  aManager->GetCompositor()->DrawQuad(Rect(rect), rect, solidEffect, 1.0, gfx::Matrix4x4());
 
   // draw the temporary surface with VR distortion to the original destination
   EffectChain vrEffect(aContainer);
@@ -351,7 +351,7 @@ ContainerRenderVR(ContainerT* aContainer,
   // XXX we shouldn't use visibleRect here -- the VR distortion needs to know the
   // full rect, not just the visible one.  Luckily, right now, VR distortion is only
   // rendered when the element is fullscreen, so the visibleRect will be right anyway.
-  aManager->GetCompositor()->DrawQuad(rect, clipRect, vrEffect, opacity,
+  aManager->GetCompositor()->DrawQuad(Rect(rect), clipRect, vrEffect, opacity,
                                       scaleTransform);
 
   DUMP("<<< ContainerRenderVR [%p]\n", aContainer);
@@ -560,9 +560,7 @@ RenderMinimap(ContainerT* aContainer, LayerManagerComposite* aManager,
 
   Rect transformedScrollRect = transform.TransformBounds(scrollRect.ToUnknownRect());
 
-  Rect clipRect = aContainer->GetEffectiveTransform().TransformBounds(transformedScrollRect);
-  clipRect.width++;
-  clipRect.height++;
+  IntRect clipRect = RoundedOut(aContainer->GetEffectiveTransform().TransformBounds(transformedScrollRect));
 
   // Render the scrollable area.
   compositor->FillRect(transformedScrollRect, backgroundColor, clipRect, aContainer->GetEffectiveTransform());
@@ -643,7 +641,7 @@ RenderLayers(ContainerT* aContainer,
       EffectChain effectChain(layer);
       effectChain.mPrimaryEffect = new EffectSolidColor(color);
       aManager->GetCompositor()->DrawQuad(gfx::Rect(layerBounds.x, layerBounds.y, layerBounds.width, layerBounds.height),
-                                          gfx::Rect(clipRect.ToUnknownRect()),
+                                          clipRect.ToUnknownRect(),
                                           effectChain, layer->GetEffectiveOpacity(),
                                           layer->GetEffectiveTransform());
     }
@@ -686,7 +684,7 @@ RenderLayers(ContainerT* aContainer,
         ParentLayerRect compositionBounds = layer->GetFrameMetrics(i - 1).GetCompositionBounds();
         aManager->GetCompositor()->DrawDiagnostics(DiagnosticFlags::CONTAINER,
                                                    compositionBounds.ToUnknownRect(),
-                                                   gfx::Rect(aClipRect.ToUnknownRect()),
+                                                   aClipRect.ToUnknownRect(),
                                                    asyncTransform * aContainer->GetEffectiveTransform());
         if (AsyncPanZoomController* apzc = layer->GetAsyncPanZoomController(i - 1)) {
           asyncTransform =
@@ -818,7 +816,7 @@ ContainerRender(ContainerT* aContainer,
 
     RefPtr<ContainerT> container = aContainer;
     RenderWithAllMasks(aContainer, compositor, aClipRect,
-                       [&, surface, compositor, container](EffectChain& effectChain, const Rect& clipRect) {
+                       [&, surface, compositor, container](EffectChain& effectChain, const IntRect& clipRect) {
       effectChain.mPrimaryEffect = new EffectRenderTarget(surface);
       compositor->DrawQuad(visibleRect, clipRect, effectChain,
                            container->GetEffectiveOpacity(),
