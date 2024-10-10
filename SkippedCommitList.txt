@@ -1,0 +1,13 @@
+Skipped Commit List:
+
+10/09/2024:
+
+Bug 1276028 - Baldr: split out CodeSegment and Metadata from Module (r=bbouvier): a784a82
+Bug 1276028 - Odin: remove trace hook from AsmJSModule (r=bbouvier): 0ec4c37
+Bug 1276028 - Odin: remove slow-function reporting (r=bbouvier): a038285
+Bug 1276028 - Baldr: tidy up ExportMap (r=bbouvier): 483b8b3
+Bug 911216 - Part 13: Set Promise allocation stack as async stack for Promise callback jobs. r=efaust,bz: 054f858
+Bug 911216 - Part 14: Add support for tracking unhandled promise rejections, exposed through a JSAPI function. r=efaust: 39f3032
+Bug 956899 - Use Mutex and ConditionVariable to simplify shell watchdog; r=jandem: 92fcd87
+Bug 956899 - Use js::Thread for JS shell watchdog thread; r=jandem: 03fed62
+Bug 1163991: Show a best effort stack frame in non-profiling mode for wasm; r=luke: 047c9eb
