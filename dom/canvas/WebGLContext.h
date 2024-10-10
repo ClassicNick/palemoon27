@@ -315,7 +315,7 @@ public:
         case LOCAL_GL_TEXTURE_2D_ARRAY:
             return mBound2DArrayTextures[mActiveTexture];
         default:
-            MOZ_CRASH("bad target");
+            MOZ_CRASH("GFX: bad target");
         }
     }
 
