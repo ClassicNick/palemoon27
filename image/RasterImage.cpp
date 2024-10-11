@@ -1444,7 +1444,7 @@ RasterImage::DrawInternal(DrawableFrameRef&& aFrameRef,
                           gfxContext* aContext,
                           const IntSize& aSize,
                           const ImageRegion& aRegion,
-                          Filter aFilter,
+                          SamplingFilter aSamplingFilter,
                           uint32_t aFlags)
 {
   gfxContextMatrixAutoSaveRestore saveMatrix(aContext);
@@ -1464,7 +1464,7 @@ RasterImage::DrawInternal(DrawableFrameRef&& aFrameRef,
     couldRedecodeForBetterFrame = CanDownscaleDuringDecode(aSize, aFlags);
   }
 
-  if (!aFrameRef->Draw(aContext, region, aFilter, aFlags)) {
+  if (!aFrameRef->Draw(aContext, region, aSamplingFilter, aFlags)) {
     RecoverFromInvalidFrames(aSize, aFlags);
     return DrawResult::TEMPORARY_ERROR;
   }
@@ -1483,7 +1483,7 @@ RasterImage::Draw(gfxContext* aContext,
                   const IntSize& aSize,
                   const ImageRegion& aRegion,
                   uint32_t aWhichFrame,
-                  Filter aFilter,
+                  SamplingFilter aSamplingFilter,
                   const Maybe<SVGImageContext>& /*aSVGContext - ignored*/,
                   uint32_t aFlags)
 {
@@ -1510,9 +1510,9 @@ RasterImage::Draw(gfxContext* aContext,
     mProgressTracker->OnUnlockedDraw();
   }
 
-  // If we're not using Filter::GOOD, we shouldn't high-quality scale or
+  // If we're not using SamplingFilter::GOOD, we shouldn't high-quality scale or
   // downscale during decode.
-  uint32_t flags = aFilter == Filter::GOOD
+  uint32_t flags = aSamplingFilter == SamplingFilter::GOOD
                  ? aFlags
                  : aFlags & ~FLAG_HIGH_QUALITY_SCALING;
 
@@ -1527,7 +1527,7 @@ RasterImage::Draw(gfxContext* aContext,
   }
 
   auto result = DrawInternal(Move(ref), aContext, aSize,
-                             aRegion, aFilter, flags);
+                             aRegion, aSamplingFilter, flags);
 
   return result;
 }
@@ -1815,7 +1815,7 @@ RasterImage::PropagateUseCounters(nsIDocument*)
 
 IntSize
 RasterImage::OptimalImageSizeForDest(const gfxSize& aDest, uint32_t aWhichFrame,
-                                     Filter aFilter, uint32_t aFlags)
+                                     SamplingFilter aSamplingFilter, uint32_t aFlags)
 {
   MOZ_ASSERT(aDest.width >= 0 || ceil(aDest.width) <= INT32_MAX ||
              aDest.height >= 0 || ceil(aDest.height) <= INT32_MAX,
@@ -1827,7 +1827,8 @@ RasterImage::OptimalImageSizeForDest(const gfxSize& aDest, uint32_t aWhichFrame,
 
   IntSize destSize(ceil(aDest.width), ceil(aDest.height));
 
-  if (aFilter == Filter::GOOD && CanDownscaleDuringDecode(destSize, aFlags)) {
+  if (aSamplingFilter == SamplingFilter::GOOD &&
+      CanDownscaleDuringDecode(destSize, aFlags)) {
     return destSize;
   }
 
