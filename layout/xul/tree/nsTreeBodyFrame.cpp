@@ -3488,7 +3488,7 @@ nsTreeBodyFrame::PaintTwisty(int32_t              aRowIndex,
         result &=
           nsLayoutUtils::DrawSingleUnscaledImage(
               *aRenderingContext.ThebesContext(), aPresContext, image,
-              Filter::POINT, pt, &aDirtyRect,
+              SamplingFilter::POINT, pt, &aDirtyRect,
               imgIContainer::FLAG_NONE, &imageSize);
       }
     }
@@ -3654,7 +3654,7 @@ nsTreeBodyFrame::PaintImage(int32_t              aRowIndex,
 
     result &=
       nsLayoutUtils::DrawImage(*ctx, aPresContext, image,
-        nsLayoutUtils::GetGraphicsFilterForFrame(this),
+        nsLayoutUtils::GetSamplingFilterForFrame(this),
         wholeImageDest, destRect, destRect.TopLeft(), aDirtyRect,
         imgIContainer::FLAG_NONE);
 
@@ -3868,7 +3868,7 @@ nsTreeBodyFrame::PaintCheckbox(int32_t              aRowIndex,
     result &=
       nsLayoutUtils::DrawSingleUnscaledImage(*aRenderingContext.ThebesContext(),
         aPresContext,
-        image, Filter::POINT, pt, &aDirtyRect,
+        image, SamplingFilter::POINT, pt, &aDirtyRect,
         imgIContainer::FLAG_NONE, &imageSize);
   }
 
@@ -3936,7 +3936,7 @@ nsTreeBodyFrame::PaintProgressMeter(int32_t              aRowIndex,
       result &=
         nsLayoutUtils::DrawImage(*aRenderingContext.ThebesContext(),
           aPresContext, image,
-          nsLayoutUtils::GetGraphicsFilterForFrame(this),
+          nsLayoutUtils::GetSamplingFilterForFrame(this),
           nsRect(meterRect.TopLeft(), size), meterRect, meterRect.TopLeft(),
           aDirtyRect, imgIContainer::FLAG_NONE);
     } else {
@@ -3964,7 +3964,7 @@ nsTreeBodyFrame::PaintProgressMeter(int32_t              aRowIndex,
       result &=
         nsLayoutUtils::DrawImage(*aRenderingContext.ThebesContext(),
           aPresContext, image,
-          nsLayoutUtils::GetGraphicsFilterForFrame(this),
+          nsLayoutUtils::GetSamplingFilterForFrame(this),
           nsRect(meterRect.TopLeft(), size), meterRect, meterRect.TopLeft(),
           aDirtyRect, imgIContainer::FLAG_NONE);
     }
