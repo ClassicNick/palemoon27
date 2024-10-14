@@ -810,7 +810,7 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate, JSRuntime* aRuntime)
   JS::ContextOptionsRef(workerCx) = kRequiredContextOptions;
 
 #ifdef JS_GC_ZEAL
-  JS_SetGCZeal(workerCx, settings.gcZeal, settings.gcZealFrequency);
+  JS_SetGCZeal(aRuntime, settings.gcZeal, settings.gcZealFrequency);
 #endif
 
   return workerCx;
