@@ -1202,9 +1202,15 @@ _getwindowobject(NPP npp)
   nsCOMPtr<nsPIDOMWindow> outer = do_QueryInterface(doc->GetWindow());
   NS_ENSURE_TRUE(outer, nullptr);
 
+<<<<<<< HEAD
   AutoJSContext cx;
   JS::Rooted<JSObject*> global(cx, static_cast<nsGlobalWindow*>(outer.get())->GetGlobalJSObject());
   return nsJSObjWrapper::GetNewOrUsed(npp, cx, global);
+=======
+  JS::Rooted<JSObject*> global(nsContentUtils::RootingCx(),
+                               nsGlobalWindow::Cast(outer)->GetGlobalJSObject());
+  return nsJSObjWrapper::GetNewOrUsed(npp, global);
+>>>>>>> 5c9abf9fa1 (Bug 1276286. Remove the unused JSContext stuff in nsJSObjWrapper::GetNewOrUsed. r=mccr8)
 }
 
 NPObject*
@@ -1244,7 +1250,7 @@ _getpluginelement(NPP npp)
                   NS_GET_IID(nsIDOMElement), obj.address());
   NS_ENSURE_TRUE(obj, nullptr);
 
-  return nsJSObjWrapper::GetNewOrUsed(npp, cx, obj);
+  return nsJSObjWrapper::GetNewOrUsed(npp, obj);
 }
 
 NPIdentifier
