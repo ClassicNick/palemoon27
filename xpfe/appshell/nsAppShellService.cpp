@@ -29,10 +29,6 @@
 #include "nsIRequestObserver.h"
 #include "nsIEmbeddingSiteWindow.h"
 
-/* For implementing GetHiddenWindowAndJSContext */
-#include "nsIScriptGlobalObject.h"
-#include "nsIScriptContext.h"
-
 #include "nsAppShellService.h"
 #include "nsContentUtils.h"
 #include "nsThreadUtils.h"
