@@ -8481,7 +8481,6 @@ nsGlobalWindow::Open(const nsAString& aUrl, const nsAString& aName,
 			     aLoadInfo,
 			     aForceNoOpener,
                              GetPrincipal(),    // aCalleePrincipal
-                             nullptr,           // aJSCallerContext
                              getter_AddRefs(window));
   if (NS_SUCCEEDED(rv) && window) {
     return CallQueryInterface(window, _retval);
@@ -8504,7 +8503,6 @@ nsGlobalWindow::OpenJS(const nsAString& aUrl, const nsAString& aName,
 		      nullptr,        // aLoadInfo
 		      false,          // aForceNoOpener
                       GetPrincipal(),    // aCalleePrincipal
-                      nsContentUtils::GetCurrentJSContext(), // aJSCallerContext
                       _retval);
 }
 
@@ -8527,7 +8525,6 @@ nsGlobalWindow::OpenDialog(const nsAString& aUrl, const nsAString& aName,
                       nullptr,                 // aLoadInfo
 		      false,                   // aForceNoOpener
                       GetPrincipal(),          // aCalleePrincipal
-                      nullptr,                 // aJSCallerContext
                       _retval);
 }
 
@@ -8549,7 +8546,6 @@ nsGlobalWindow::OpenNoNavigate(const nsAString& aUrl,
                       nullptr,           // aLoadInfo
 		      false,             // aForceNoOpener
                       GetPrincipal(),    // aCalleePrincipal
-                      nullptr,           // aJSCallerContext
                       _retval);
 
 }
@@ -8581,7 +8577,6 @@ nsGlobalWindow::OpenDialogOuter(JSContext* aCx, const nsAString& aUrl,
                         nullptr,             // aLoadInfo
 			false,               // aForceNoOpener
                         GetPrincipal(),      // aCalleePrincipal
-                        aCx,                 // aJSCallerContext
                         getter_AddRefs(dialog));
   return dialog.forget();
 }
@@ -9705,7 +9700,6 @@ nsGlobalWindow::ShowModalDialogOuter(const nsAString& aUrl, nsIVariant* aArgumen
                         nullptr,            // aLoadInfo
 			false,              // aForceNoOpener
                         GetPrincipal(),     // aCalleePrincipal
-                        nullptr,            // aJSCallerContext
                         getter_AddRefs(dlgWin));
   nsContentUtils::SetMicroTaskLevel(oldMicroTaskLevel);
   LeaveModalState();
@@ -12304,7 +12298,6 @@ nsGlobalWindow::OpenInternal(const nsAString& aUrl, const nsAString& aName,
 			     nsIDocShellLoadInfo* aLoadInfo,
 			     bool aForceNoOpener,
                              nsIPrincipal *aCalleePrincipal,
-                             JSContext *aJSCallerContext,
                              nsIDOMWindow **aReturn)
 {
   MOZ_ASSERT(IsOuterWindow());
@@ -12318,8 +12311,6 @@ nsGlobalWindow::OpenInternal(const nsAString& aUrl, const nsAString& aName,
                   "Can't pass in arguments both ways");
   NS_PRECONDITION(!aCalledNoScript || (!argv && argc == 0),
                   "Can't pass JS args when called via the noscript methods");
-  NS_PRECONDITION(!aJSCallerContext || !aCalledNoScript,
-                  "Shouldn't have caller context when called noscript");
 
   mozilla::Maybe<AutoUnblockScriptClosing> closeUnblocker;
 

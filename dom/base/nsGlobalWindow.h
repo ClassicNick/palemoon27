@@ -1351,9 +1351,6 @@ private:
    *                       aOptions, but without affecting any other window
    *                       features.
    *
-   * @param aJSCallerContext The calling script's context. This must be null
-   *        when aCalledNoScript is true.
-   *
    * @param aReturn [out] The window that was opened, if any.
    *
    * Outer windows only.
@@ -1371,7 +1368,6 @@ private:
 				                            nsIDocShellLoadInfo* aLoadInfo,
 				                            bool aForceNoOpener,
                                     nsIPrincipal *aCalleePrincipal,
-                                    JSContext *aJSCallerContext,
                                     nsIDOMWindow **aReturn);
 
 public:
