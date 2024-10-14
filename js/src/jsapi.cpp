@@ -6412,7 +6412,10 @@ DescribeScriptedCaller(JSContext* cx, AutoFilename* filename, unsigned* lineno,
     if (column)
         *column = 0;
 
-    NonBuiltinFrameIter i(cx, FrameIter::STOP_AT_SAVED);
+    if (!cx->compartment())
+        return false;
+
+    NonBuiltinFrameIter i(cx, cx->compartment()->principals());
     if (i.done())
         return false;
 
