@@ -656,6 +656,10 @@ class MessageEventRunnable final : public WorkerRunnable
   // This is only used for messages dispatched to a service worker.
   UniquePtr<ServiceWorkerClientInfo> mEventSource;
 
+  // This is only used to hold service workers alive while dispatching the
+  // message event.
+  nsMainThreadPtrHandle<nsISupports> mKeepAliveToken;
+
 public:
   MessageEventRunnable(WorkerPrivate* aWorkerPrivate,
                        TargetAndBusyBehavior aBehavior)
@@ -666,9 +670,11 @@ public:
   }
 
   void
-  SetMessageSource(UniquePtr<ServiceWorkerClientInfo>&& aSource)
+  SetServiceWorkerData(UniquePtr<ServiceWorkerClientInfo>&& aSource,
+                       const nsMainThreadPtrHandle<nsISupports>& aKeepAliveToken)
   {
     mEventSource = Move(aSource);
+    mKeepAliveToken = aKeepAliveToken;
   }
 
   bool
@@ -2932,6 +2938,7 @@ WorkerPrivateParent<Derived>::PostMessageInternal(
                                             JS::Handle<JS::Value> aMessage,
                                             const Optional<Sequence<JS::Value>>& aTransferable,
                                             UniquePtr<ServiceWorkerClientInfo>&& aClientInfo,
+                                            const nsMainThreadPtrHandle<nsISupports>& aKeepAliveToken,
                                             ErrorResult& aRv)
 {
   AssertIsOnParentThread();
@@ -2993,7 +3000,7 @@ WorkerPrivateParent<Derived>::PostMessageInternal(
     return;
   }
 
-  runnable->SetMessageSource(Move(aClientInfo));
+  runnable->SetServiceWorkerData(Move(aClientInfo), aKeepAliveToken);
 
   if (!runnable->Dispatch()) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -3007,7 +3014,7 @@ WorkerPrivateParent<Derived>::PostMessage(
                              const Optional<Sequence<JS::Value>>& aTransferable,
                              ErrorResult& aRv)
 {
-  PostMessageInternal(aCx, aMessage, aTransferable, nullptr, aRv);
+  PostMessageInternal(aCx, aMessage, aTransferable, nullptr, nullptr, aRv);
 }
 
 template <class Derived>
@@ -3016,10 +3023,12 @@ WorkerPrivateParent<Derived>::PostMessageToServiceWorker(
                              JSContext* aCx, JS::Handle<JS::Value> aMessage,
                              const Optional<Sequence<JS::Value>>& aTransferable,
                              UniquePtr<ServiceWorkerClientInfo>&& aClientInfo,
+                             const nsMainThreadPtrHandle<nsISupports>& aKeepAliveToken,
                              ErrorResult& aRv)
 {
   AssertIsOnMainThread();
-  PostMessageInternal(aCx, aMessage, aTransferable, Move(aClientInfo), aRv);
+  PostMessageInternal(aCx, aMessage, aTransferable, Move(aClientInfo),
+                      aKeepAliveToken, aRv);
 }
 
 template <class Derived>
