@@ -39,4 +39,5 @@ BROWSER_CHROME_MANIFESTS += [
 
 TEST_DIRS += [
     'gtest',
+    'jsmodules'
 ]
