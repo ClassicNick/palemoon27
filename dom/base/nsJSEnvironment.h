@@ -152,8 +152,6 @@ protected:
 private:
   void DestroyJSContext();
 
-  nsrefcnt GetCCRefcnt();
-
   JSContext *mContext;
   JS::Heap<JSObject*> mWindowProxy;
 
