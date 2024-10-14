@@ -18,6 +18,7 @@
 #include "nsJSUtils.h"
 #include "mozilla/dom/ScriptSettings.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/dom/SRILogHelper.h"
 #include "nsGkAtoms.h"
 #include "nsNetUtil.h"
 #include "nsIScriptGlobalObject.h"
@@ -59,13 +60,6 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 static LazyLogModule gCspPRLog("CSP");
-
-static LogModule*
-GetSriLog()
-{
-  static LazyLogModule gSriPRLog("SRI");
-  return gSriPRLog;
-}
 
 NS_IMPL_ISUPPORTS0(nsScriptLoadRequest)
 
@@ -570,7 +564,7 @@ nsScriptLoader::ProcessScriptElement(nsIScriptElement *aElement)
         scriptContent->GetAttr(kNameSpaceID_None, nsGkAtoms::integrity,
                                integrity);
         if (!integrity.IsEmpty()) {
-          MOZ_LOG(GetSriLog(), mozilla::LogLevel::Debug,
+          MOZ_LOG(SRILogHelper::GetSriLog(), mozilla::LogLevel::Debug,
                  ("nsScriptLoader::ProcessScriptElement, integrity=%s",
                   NS_ConvertUTF16toUTF8(integrity).get()));
           SRICheck::IntegrityMetadata(integrity, mDocument, &sriMetadata);
@@ -1669,7 +1663,7 @@ nsScriptLoader::PreloadURI(nsIURI *aURI, const nsAString &aCharset,
 
   SRIMetadata sriMetadata;
   if (!aIntegrity.IsEmpty()) {
-    MOZ_LOG(GetSriLog(), mozilla::LogLevel::Debug,
+    MOZ_LOG(SRILogHelper::GetSriLog(), mozilla::LogLevel::Debug,
            ("nsScriptLoader::PreloadURI, integrity=%s",
             NS_ConvertUTF16toUTF8(aIntegrity).get()));
     SRICheck::IntegrityMetadata(aIntegrity, mDocument, &sriMetadata);
