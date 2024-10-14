@@ -166,8 +166,6 @@ private:
   // context does. It is eventually collected by the cycle collector.
   nsCOMPtr<nsIScriptGlobalObject> mGlobalObjectRef;
 
-  static void JSOptionChangedCallback(const char *pref, void *data);
-
   static bool DOMOperationCallback(JSContext *cx);
 };
 
