@@ -157,7 +157,7 @@ nsSocketTransportService::DispatchFromScript(nsIRunnable *event, uint32_t flags)
 }
 
 NS_IMETHODIMP
-nsSocketTransportService::Dispatch(already_AddRefed<nsIRunnable>&& event, uint32_t flags)
+nsSocketTransportService::Dispatch(already_AddRefed<nsIRunnable> event, uint32_t flags)
 {
     nsCOMPtr<nsIRunnable> event_ref(event);
     SOCKET_LOG(("STS dispatch [%p]\n", event_ref.get()));
@@ -174,7 +174,7 @@ nsSocketTransportService::Dispatch(already_AddRefed<nsIRunnable>&& event, uint32
 }
 
 NS_IMETHODIMP
-nsSocketTransportService::DelayedDispatch(already_AddRefed<nsIRunnable>&&, uint32_t)
+nsSocketTransportService::DelayedDispatch(already_AddRefed<nsIRunnable>, uint32_t)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
