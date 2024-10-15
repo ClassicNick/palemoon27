@@ -3330,7 +3330,7 @@ void HTMLMediaElement::UpdateSrcMediaStreamPlaying(uint32_t aFlags)
 
   // If the input is a media stream, we don't check its data and always regard
   // it as audible when it's playing.
-  NotifyAudibleStateChanged(shouldPlay);
+  SetAudibleState(shouldPlay);
 }
 
 void HTMLMediaElement::SetupSrcMediaStreamPlayback(DOMMediaStream* aStream)
@@ -5532,7 +5532,7 @@ HTMLMediaElement::IsCurrentlyPlaying() const
 }
 
 void
-HTMLMediaElement::NotifyAudibleStateChanged(bool aAudible)
+HTMLMediaElement::SetAudibleState(bool aAudible)
 {
   if (mIsAudioTrackAudible != aAudible) {
     mIsAudioTrackAudible = aAudible;
