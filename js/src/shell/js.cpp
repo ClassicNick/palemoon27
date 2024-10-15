@@ -6491,9 +6491,6 @@ NewContext(JSRuntime* rt)
     if (!cx)
         return nullptr;
 
-    JS::ContextOptionsRef(cx).setDontReportUncaught(true);
-    JS::ContextOptionsRef(cx).setAutoJSAPIOwnsErrorReporting(true);
-
     JSShellContextData* data = NewContextData();
     if (!data) {
         DestroyContext(cx, false);

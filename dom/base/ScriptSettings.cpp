@@ -294,7 +294,6 @@ GetWebIDLCallerPrincipal()
 
 AutoJSAPI::AutoJSAPI()
   : mCx(nullptr)
-  , mOldAutoJSAPIOwnsErrorReporting(false)
   , mIsMainThread(false) // For lack of anything better
 {
 }
@@ -309,13 +308,6 @@ AutoJSAPI::~AutoJSAPI()
   }
 
   ReportException();
-
-  // We need to do this _after_ processing the existing exception, because the
-  // JS engine can throw while doing that, and uses this bit to determine what
-  // to do in that case: squelch the exception if the bit is set, otherwise
-  // call the error reporter. Calling WarningOnlyErrorReporter with a
-  // non-warning will assert, so we need to make sure we do the former.
-  JS::ContextOptionsRef(cx()).setAutoJSAPIOwnsErrorReporting(mOldAutoJSAPIOwnsErrorReporting);
 
   if (mOldErrorReporter.isSome()) {
     JS_SetErrorReporter(JS_GetRuntime(cx()), mOldErrorReporter.value());
@@ -356,8 +348,6 @@ AutoJSAPI::InitInternal(nsIGlobalObject* aGlobalObject, JSObject* aGlobal,
   JSRuntime* rt = JS_GetRuntime(aCx);
   mOldErrorReporter.emplace(JS_GetErrorReporter(rt));
 
-  mOldAutoJSAPIOwnsErrorReporting = JS::ContextOptionsRef(aCx).autoJSAPIOwnsErrorReporting();
-  JS::ContextOptionsRef(aCx).setAutoJSAPIOwnsErrorReporting(true);
   JS_SetErrorReporter(rt, WarningOnlyErrorReporter);
 
 #ifdef DEBUG
@@ -430,8 +420,7 @@ AutoJSAPI::InitInternal(nsIGlobalObject* aGlobalObject, JSObject* aGlobal,
 AutoJSAPI::AutoJSAPI(nsIGlobalObject* aGlobalObject,
                      bool aIsMainThread,
                      JSContext* aCx)
-  : mOldAutoJSAPIOwnsErrorReporting(false)
-  , mIsMainThread(aIsMainThread)
+  : mIsMainThread(aIsMainThread)
 {
   MOZ_ASSERT(aGlobalObject);
   MOZ_ASSERT(aGlobalObject->GetGlobalJSObject(), "Must have a JS global");
