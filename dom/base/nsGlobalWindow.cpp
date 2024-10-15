@@ -9023,10 +9023,10 @@ nsGlobalWindow::FinalClose()
   // complete _two_ round-trips to the event loop before the call to
   // ReallyCloseWindow. This allows setTimeout handlers that are set after
   // FinalClose() is called to run before the window is torn down.
-  nsCOMPtr<nsPIDOMWindowInner> entryWindow =
+  nsCOMPtr<nsPIDOMWindow> entryWindow =
     do_QueryInterface(GetEntryGlobal());
   bool indirect =
-    entryWindow && entryWindow->GetOuterWindow() == this->AsOuter();
+    entryWindow && entryWindow->GetOuterWindow();
   if (NS_FAILED(nsCloseEvent::PostCloseEvent(this, indirect))) {
     ReallyCloseWindow();
   } else {
@@ -12392,12 +12392,12 @@ nsGlobalWindow::OpenInternal(const nsAString& aUrl, const nsAString& aName,
         // But if we're doing a window.open on ourselves and block the popup,
         // prevent this window from closing until after this script terminates
         // so that whatever popup blocker UI the app has will be visible.
-        nsCOMPtr<nsPIDOMWindowInner> entryWindow =
+        nsCOMPtr<nsPIDOMWindow> entryWindow =
           do_QueryInterface(GetEntryGlobal());
         // Note that entryWindow can be null here if some JS component was the
         // place where script was entered for this JS execution.
         if (entryWindow &&
-            entryWindow->GetOuterWindow() == this->AsOuter()) {
+            entryWindow->GetOuterWindow()) {
           mBlockScriptedClosingFlag = true;
           closeUnblocker.emplace(this);
         }

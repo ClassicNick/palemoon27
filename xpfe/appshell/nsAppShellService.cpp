@@ -35,6 +35,8 @@
 #include "nsISupportsPrimitives.h"
 #include "nsIChromeRegistry.h"
 #include "nsILoadContext.h"
+#include "nsIScriptContext.h"
+#include "nsIScriptGlobalObject.h"
 #include "nsIWebNavigation.h"
 #include "nsIWindowlessBrowser.h"
 

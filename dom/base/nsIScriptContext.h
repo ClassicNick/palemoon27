@@ -38,6 +38,12 @@ public:
   virtual nsIScriptGlobalObject *GetGlobalObject() = 0;
 
   /**
+   * Return the native script context
+   *
+   **/
+  virtual JSContext* GetNativeContext() = 0;
+
+  /**
    * Initialize the context generally. Does not create a global object.
    **/
   virtual nsresult InitContext() = 0;

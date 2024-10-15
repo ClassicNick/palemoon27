@@ -3338,7 +3338,7 @@ private:
       wp = wp->GetParent();
     }
 
-    nsPIDOMWindowInner* window = wp->GetWindow();
+    nsPIDOMWindow* window = wp->GetWindow();
     if (window && window->GetExtantDoc()) {
       window->GetExtantDoc()->WarnOnceAbout(mOperation);
     }
