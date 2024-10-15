@@ -650,6 +650,36 @@ tail =
         self.assertInLog(TEST_FAIL_STRING)
         self.assertNotInLog(TEST_PASS_STRING)
 
+    def testUncaughtRejection(self):
+        """
+        Ensure a simple test with an uncaught rejection is reported.
+        """
+        self.writeFile("test_simple_uncaught_rejection.js", SIMPLE_UNCAUGHT_REJECTION_TEST)
+        self.writeManifest(["test_simple_uncaught_rejection.js"])
+
+        self.assertTestResult(False)
+        self.assertInLog(TEST_FAIL_STRING)
+        self.assertInLog("test_simple_uncaught_rejection.js:3:3")
+        self.assertInLog("Test rejection.")
+        self.assertEquals(1, self.x.testCount)
+        self.assertEquals(0, self.x.passCount)
+        self.assertEquals(1, self.x.failCount)
+
+    def testUncaughtRejectionJSM(self):
+        """
+        Ensure a simple test with an uncaught rejection from Promise.jsm is reported.
+        """
+        self.writeFile("test_simple_uncaught_rejection_jsm.js", SIMPLE_UNCAUGHT_REJECTION_JSM_TEST)
+        self.writeManifest(["test_simple_uncaught_rejection_jsm.js"])
+
+        self.assertTestResult(False)
+        self.assertInLog(TEST_FAIL_STRING)
+        self.assertInLog("test_simple_uncaught_rejection_jsm.js:4:16")
+        self.assertInLog("Test rejection.")
+        self.assertEquals(1, self.x.testCount)
+        self.assertEquals(0, self.x.passCount)
+        self.assertEquals(1, self.x.failCount)
+
     def testAddTestSimple(self):
         """
         Ensure simple add_test() works.
