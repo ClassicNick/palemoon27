@@ -169,6 +169,7 @@ EXPORTS.mozilla.dom += [
     'DOMRect.h',
     'DOMRequest.h',
     'DOMStringList.h',
+    'DOMTokenListSupportedTokens.h',
     'Element.h',
     'ElementInlines.h',
     'EventSource.h',
