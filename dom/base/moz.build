@@ -7,7 +7,6 @@
 TEST_DIRS += ['test']
 
 XPIDL_SOURCES += [
-    'mozIDOMWindow.idl',
     'nsIContentPolicy.idl',
     'nsIContentPolicyBase.idl',
     'nsIDocumentEncoder.idl',
