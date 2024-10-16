@@ -847,8 +847,9 @@ private:
   virtual nsresult
   RunOnMainThread() override
   {
-    mProxy->mXHR->OverrideMimeType(mMimeType);
-    return NS_OK;
+    ErrorResult aRv;
+    mProxy->mXHR->OverrideMimeType(mMimeType, aRv);
+    return aRv.StealNSResult();
   }
 };
 
