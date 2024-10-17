@@ -43,7 +43,8 @@ interface nsIPrivacyTransitionObserver;
 interface nsIReflowObserver;
 interface nsIScrollObserver;
 interface nsITabParent;
- 
+interface nsICommandManager;
+
 typedef unsigned long nsLoadFlags;
 
 [scriptable, builtinclass, uuid(98358234-3936-4b95-b051-fcda4e55b52d)]
@@ -1139,6 +1140,7 @@ interface nsIDocShell_ESR38_2 : nsIDocShell_ESR38
    *                          srcdoc loads as it cannot otherwise be inferred
    *                          in certain situations such as view-source.
    */
+<<<<<<< HEAD
   [noscript]void internalLoad2(in nsIURI aURI,
                                in nsIURI aOriginalURI,
                                in boolean aLoadReplace,
@@ -1160,4 +1162,10 @@ interface nsIDocShell_ESR38_2 : nsIDocShell_ESR38
                                in nsIURI aBaseURI,
                                out nsIDocShell aDocShell,
                                out nsIRequest aRequest);
+=======
+  [binaryname(ScriptableTabChild)] readonly attribute nsITabChild tabChild;
+  [noscript,notxpcom,nostdcall] TabChildRef GetTabChild();
+
+  [noscript,nostdcall,notxpcom] nsICommandManager GetCommandManager();
+>>>>>>> d61f03dc10 (bug 1271436 - add nsIDocShell::GetCommandManager() r=smaug)
 };
