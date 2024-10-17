@@ -2042,10 +2042,9 @@ nsFrameLoader::MaybeCreateDocShell()
 
   if (OwnerIsBrowserOrAppFrame()) {
     // For inproc frames, set the docshell properties.
-    nsCOMPtr<nsIDocShellTreeItem> item = do_GetInterface(docShell);
     nsAutoString name;
     if (mOwnerContent->GetAttr(kNameSpaceID_None, nsGkAtoms::name, name)) {
-      item->SetName(name);
+      docShell->SetName(name);
     }
     mDocShell->SetFullscreenAllowed(
       mOwnerContent->HasAttr(kNameSpaceID_None, nsGkAtoms::allowfullscreen) ||
