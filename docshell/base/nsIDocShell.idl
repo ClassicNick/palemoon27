@@ -43,7 +43,8 @@ interface nsIPrivacyTransitionObserver;
 interface nsIReflowObserver;
 interface nsIScrollObserver;
 interface nsITabParent;
- 
+interface nsICommandManager;
+
 typedef unsigned long nsLoadFlags;
 
 [scriptable, builtinclass, uuid(98358234-3936-4b95-b051-fcda4e55b52d)]
@@ -1083,6 +1084,7 @@ interface nsIDocShell : nsIDocShellTreeItem
   /*
    * Sets the user context ID for this docshell.
    */
+<<<<<<< HEAD
   void setUserContextId(in unsigned long aUserContextId);
 };
 
@@ -1160,4 +1162,24 @@ interface nsIDocShell_ESR38_2 : nsIDocShell_ESR38
                                in nsIURI aBaseURI,
                                out nsIDocShell aDocShell,
                                out nsIRequest aRequest);
+=======
+  [implicit_jscontext]
+  jsval getOriginAttributes();
+
+  [implicit_jscontext]
+  void setOriginAttributes(in jsval aAttrs);
+
+  /**
+   * The editing session for this docshell.
+   */
+  readonly attribute nsIEditingSession editingSession;
+
+  /**
+   * The tab child for this docshell.
+   */
+  [binaryname(ScriptableTabChild)] readonly attribute nsITabChild tabChild;
+  [noscript,notxpcom,nostdcall] TabChildRef GetTabChild();
+
+  [noscript,nostdcall,notxpcom] nsICommandManager GetCommandManager();
+>>>>>>> d61f03dc10 (bug 1271436 - add nsIDocShell::GetCommandManager() r=smaug)
 };

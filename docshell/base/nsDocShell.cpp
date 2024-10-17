@@ -14490,3 +14490,10 @@ nsDocShell::IssueWarning(uint32_t aWarning, bool aAsError)
   }
   return NS_OK;
 }
+
+nsICommandManager*
+nsDocShell::GetCommandManager()
+{
+  NS_ENSURE_SUCCESS(EnsureCommandHandler(), nullptr);
+  return mCommandManager;
+}
