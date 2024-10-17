@@ -5,6 +5,7 @@
 var Cc = Components.classes;
 var Ci = Components.interfaces;
 var Cu = Components.utils;
+var Cr = Components.results;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import('resource://gre/modules/XPCOMUtils.jsm');
@@ -315,6 +316,7 @@ var SecurityUI = {
 var ControllerCommands = {
   init: function () {
     addMessageListener("ControllerCommands:Do", this);
+    addMessageListener("ControllerCommands:DoWithParams", this);
   },
 
   receiveMessage: function(message) {
@@ -322,6 +324,23 @@ var ControllerCommands = {
       case "ControllerCommands:Do":
         if (docShell.isCommandEnabled(message.data))
           docShell.doCommand(message.data);
+        break;
+
+      case "ControllerCommands:DoWithParams":
+        var data = message.data;
+        if (docShell.isCommandEnabled(data.cmd)) {
+          var params = Cc["@mozilla.org/embedcomp/command-params;1"].
+                       createInstance(Ci.nsICommandParams);
+          for (var name in data.params) {
+            var value = data.params[name];
+            if (value.type == "long") {
+              params.setLongValue(name, parseInt(value.value));
+            } else {
+              throw Cr.NS_ERROR_NOT_IMPLEMENTED;
+            }
+          }
+          docShell.doCommandWithParams(data.cmd, params);
+        }
         break;
     }
   }
