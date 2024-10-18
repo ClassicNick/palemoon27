@@ -70,6 +70,7 @@
 #include "mozilla/dom/time/DateCacheCleaner.h"
 #include "mozilla/dom/voicemail/VoicemailParent.h"
 #include "mozilla/embedding/printingui/PrintingParent.h"
+#include "mozilla/gfx/GPUProcessManager.h"
 #include "mozilla/hal_sandbox/PHalParent.h"
 #include "mozilla/ipc/BackgroundChild.h"
 #include "mozilla/ipc/BackgroundParent.h"
@@ -300,6 +301,7 @@ using namespace mozilla::dom::telephony;
 using namespace mozilla::dom::voicemail;
 using namespace mozilla::media;
 using namespace mozilla::embedding;
+using namespace mozilla::gfx;
 using namespace mozilla::gmp;
 using namespace mozilla::hal;
 using namespace mozilla::ipc;
@@ -1925,7 +1927,7 @@ ContentParent::AllocateLayerTreeId(ContentParent* aContent,
                                    TabParent* aTopLevel, const TabId& aTabId,
                                    uint64_t* aId)
 {
-  *aId = CompositorBridgeParent::AllocateLayerTreeId();
+  *aId = GPUProcessManager::Get()->AllocateLayerTreeId();
 
   if (!gfxPlatform::AsyncPanZoomEnabled()) {
     return true;
@@ -1936,7 +1938,7 @@ ContentParent::AllocateLayerTreeId(ContentParent* aContent,
   }
 
   return CompositorBridgeParent::UpdateRemoteContentController(*aId, aContent,
-                                                         aTabId, aTopLevel);
+                                                               aTabId, aTopLevel);
 }
 
 bool
@@ -1982,8 +1984,9 @@ ContentParent::RecvDeallocateLayerTreeId(const uint64_t& aId)
 {
   auto iter = NestedBrowserLayerIds().find(this);
   if (iter != NestedBrowserLayerIds().end() &&
-    iter->second.find(aId) != iter->second.end()) {
-    CompositorBridgeParent::DeallocateLayerTreeId(aId);
+      iter->second.find(aId) != iter->second.end())
+  {
+    GPUProcessManager::Get()->DeallocateLayerTreeId(aId);
   } else {
     // You can't deallocate layer tree ids that you didn't allocate
     KillHard("DeallocateLayerTreeId");
