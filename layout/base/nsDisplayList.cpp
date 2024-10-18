@@ -2436,6 +2436,10 @@ nsDisplayBackgroundImage::AppendBackgroundItemsToTop(nsDisplayListBuilder* aBuil
                                                      nsDisplayList* aList,
                                                      bool aAllowWillPaintBorderOptimization)
 {
+  if (aBuilder->IsForGenerateGlyphPath()) {
+    return true;
+  }
+
   nsStyleContext* bgSC = nullptr;
   const nsStyleBackground* bg = nullptr;
   nsRect bgRect = aBackgroundRect + aBuilder->ToReferenceFrame(aFrame);
