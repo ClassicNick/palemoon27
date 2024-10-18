@@ -409,6 +409,7 @@ public:
     LayoutDeviceRect dirtyRect;
     gfxTextContextPaint* contextPaint = nullptr;
     DrawPathCallbacks* callbacks = nullptr;
+    bool generateTextMask = false;
     explicit PaintTextParams(gfxContext* aContext) : context(aContext) {}
   };
 
