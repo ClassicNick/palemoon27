@@ -1158,6 +1158,7 @@
       </method>
 
       <method name="print">
+        <parameter name="aOuterWindowID"/>
         <parameter name="aPrintSettings"/>
         <parameter name="aPrintProgressListener"/>
         <body>
@@ -1168,7 +1169,8 @@
                                          Components.results.NS_ERROR_FAILURE);
             }
 
-            owner.frameLoader.print(aPrintSettings, aPrintProgressListener);
+            owner.frameLoader.print(aOuterWindowID, aPrintSettings,
+                                    aPrintProgressListener);
           ]]>
         </body>
       </method>
