@@ -10013,7 +10013,7 @@ nsDocShell::InternalLoad2(nsIURI* aURI,
   // possible frameloader initialization before loading a new page.
   nsCOMPtr<nsIDocShellTreeItem> parent = GetParentDocshell();
   if (parent) {
-    nsCOMPtr<nsIDocument> doc = do_GetInterface(parent);
+    nsCOMPtr<nsIDocument> doc = parent->GetDocument();
     if (doc) {
       doc->TryCancelFrameLoaderInitialization(this);
     }
