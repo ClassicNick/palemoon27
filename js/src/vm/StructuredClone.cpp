@@ -358,6 +358,7 @@ struct JSStructuredCloneWriter {
 
     friend bool JS_WriteString(JSStructuredCloneWriter* w, HandleString str);
     friend bool JS_WriteTypedArray(JSStructuredCloneWriter* w, HandleValue v);
+    friend bool JS_ObjectNotWritten(JSStructuredCloneWriter* w, HandleObject obj);
 };
 
 JS_FRIEND_API(uint64_t)
@@ -1806,7 +1807,7 @@ JSStructuredCloneReader::startRead(MutableHandleValue vp)
       }
 
       case SCTAG_BACK_REFERENCE_OBJECT: {
-        if (data >= allObjs.length()) {
+        if (data >= allObjs.length() || !allObjs[data].isObject()) {
             JS_ReportErrorNumber(context(), GetErrorMessage, nullptr,
                                  JSMSG_SC_BAD_SERIALIZED_DATA,
                                  "invalid back reference in input");
@@ -2464,4 +2465,12 @@ JS_WriteTypedArray(JSStructuredCloneWriter* w, HandleValue v)
     assertSameCompartment(w->context(), v);
     RootedObject obj(w->context(), &v.toObject());
     return w->writeTypedArray(obj);
+}
+
+JS_PUBLIC_API(bool)
+JS_ObjectNotWritten(JSStructuredCloneWriter* w, HandleObject obj)
+{
+    w->memory.remove(w->memory.lookup(obj));
+
+    return true;
 }
