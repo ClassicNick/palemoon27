@@ -292,6 +292,8 @@ bool nsContentUtils::sFragmentParsingActive = false;
 bool nsContentUtils::sDOMWindowDumpEnabled;
 #endif
 
+bool nsContentUtils::sDoNotTrackEnabled = false;
+
 mozilla::LazyLogModule nsContentUtils::sDOMDumpLog("Dump");
 
 // Subset of http://www.whatwg.org/specs/web-apps/current-work/#autofill-field-name
@@ -596,6 +598,9 @@ nsContentUtils::Init()
   Preferences::AddBoolVarCache(&sDOMWindowDumpEnabled,
                                "browser.dom.window.dump.enabled");
 #endif
+
+  Preferences::AddBoolVarCache(&sDoNotTrackEnabled,
+                               "privacy.donottrackheader.enabled", false);
 
   Element::InitCCCallbacks();
 
@@ -6958,6 +6963,12 @@ nsContentUtils::DOMWindowDumpEnabled()
 #else
   return true;
 #endif
+}
+
+bool
+nsContentUtils::DoNotTrackEnabled()
+{
+  return nsContentUtils::sDoNotTrackEnabled;
 }
 
 mozilla::LogModule*
