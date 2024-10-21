@@ -3379,6 +3379,7 @@ bool
 ContentParent::RecvGetXPCOMProcessAttributes(bool* aIsOffline,
                                              bool* aIsConnected,
                                              bool* aIsLangRTL,
+                                             bool* aHaveBidiKeyboards,
                                              InfallibleTArray<nsString>* dictionaries,
                                              ClipboardCapabilities* clipboardCaps,
                                              DomainPolicyClone* domainPolicy,
@@ -3395,8 +3396,10 @@ ContentParent::RecvGetXPCOMProcessAttributes(bool* aIsOffline,
   nsIBidiKeyboard* bidi = nsContentUtils::GetBidiKeyboard();
 
   *aIsLangRTL = false;
+  *aHaveBidiKeyboards = false;
   if (bidi) {
     bidi->IsLangRTL(aIsLangRTL);
+    bidi->GetHaveBidiKeyboards(aHaveBidiKeyboards);
   }
 
   nsCOMPtr<nsISpellChecker> spellChecker(do_GetService(NS_SPELLCHECKER_CONTRACTID));
