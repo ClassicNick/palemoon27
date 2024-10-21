@@ -1086,6 +1086,15 @@ Http2Stream::Close(nsresult reason)
 }
 
 void
+Http2Stream::SetResponseIsComplete()
+{
+  nsHttpTransaction *trans = mTransaction->QueryHttpTransaction();
+  if (trans) {
+    trans->SetResponseIsComplete();
+  }
+}
+
+void
 Http2Stream::SetAllHeadersReceived()
 {
   if (mAllHeadersReceived) {
