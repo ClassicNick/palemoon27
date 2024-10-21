@@ -83,7 +83,6 @@
 #include "mozilla/ipc/InputStreamUtils.h"
 #include "mozilla/jsipc/CrossProcessObjectWrappers.h"
 #include "mozilla/layers/PAPZParent.h"
-#include "mozilla/layers/CompositorBridgeParent.h"
 #include "mozilla/layers/CompositorThread.h"
 #include "mozilla/layers/ImageBridgeParent.h"
 #include "mozilla/layers/SharedBufferManagerParent.h"
@@ -1927,7 +1926,8 @@ ContentParent::AllocateLayerTreeId(ContentParent* aContent,
                                    TabParent* aTopLevel, const TabId& aTabId,
                                    uint64_t* aId)
 {
-  *aId = GPUProcessManager::Get()->AllocateLayerTreeId();
+  GPUProcessManager* gpu = GPUProcessManager::Get();
+  *aId = gpu->AllocateLayerTreeId();
 
   if (!gfxPlatform::AsyncPanZoomEnabled()) {
     return true;
@@ -1937,8 +1937,7 @@ ContentParent::AllocateLayerTreeId(ContentParent* aContent,
     return false;
   }
 
-  return CompositorBridgeParent::UpdateRemoteContentController(*aId, aContent,
-                                                               aTabId, aTopLevel);
+  return gpu->UpdateRemoteContentController(*aId, aContent, aTabId, aTopLevel);
 }
 
 bool
@@ -3327,7 +3326,8 @@ PCompositorBridgeParent*
 ContentParent::AllocPCompositorBridgeParent(mozilla::ipc::Transport* aTransport,
                                             base::ProcessId aOtherProcess)
 {
-  return CompositorBridgeParent::Create(aTransport, aOtherProcess, mSubprocess);
+  return GPUProcessManager::Get()->CreateTabCompositorBridge(
+    aTransport, aOtherProcess, mSubprocess);
 }
 
 gfx::PVRManagerParent*
