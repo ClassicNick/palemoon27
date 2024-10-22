@@ -4922,6 +4922,11 @@ pref("alerts.durationImmediate", 20000);
 
 // DOM full-screen API.
 pref("full-screen-api.enabled", false);
+#ifdef RELEASE_BUILD
+pref("full-screen-api.unprefix.enabled", false);
+#else
+pref("full-screen-api.unprefix.enabled", true);
+#endif
 pref("full-screen-api.allow-trusted-requests-only", true);
 pref("full-screen-api.content-only", false);
 pref("full-screen-api.pointer-lock.enabled", true);

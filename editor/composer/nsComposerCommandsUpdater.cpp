@@ -360,7 +360,7 @@ nsComposerCommandsUpdater::GetCommandUpdater()
 {
   nsCOMPtr<nsIDocShell> docShell = do_QueryReferent(mDocShell);
   NS_ENSURE_TRUE(docShell, nullptr);
-  nsCOMPtr<nsICommandManager> manager = docShell->GetCommandManager();
+  nsCOMPtr<nsICommandManager> manager = do_GetInterface(docShell);
   nsCOMPtr<nsPICommandUpdater> updater = do_QueryInterface(manager);
   return updater.forget();
 }

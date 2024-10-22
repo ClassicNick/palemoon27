@@ -7,6 +7,7 @@
 #include "mozilla/Assertions.h"
 #include "mozilla/BasePrincipal.h"
 #include "mozilla/LoadContext.h"
+#include "mozilla/Preferences.h"
 
 namespace mozilla {
 
