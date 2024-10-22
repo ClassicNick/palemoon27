@@ -1154,8 +1154,8 @@ imgMemoryReporter* imgLoader::sMemReporter;
 NS_IMPL_ISUPPORTS(imgLoader, imgILoader, nsIContentSniffer, imgICache,
                   nsISupportsWeakReference, nsIObserver)
 
-static imgLoader* gSingleton = nullptr;
-static imgLoader* gPBSingleton = nullptr;
+static imgLoader* gNormalLoader = nullptr;
+static imgLoader* gPrivateBrowsingLoader = nullptr;
 
 /* static */ already_AddRefed<imgLoader>
 imgLoader::CreateImageLoader()
@@ -1172,22 +1172,22 @@ imgLoader::CreateImageLoader()
 }
 
 imgLoader*
-imgLoader::Singleton()
+imgLoader::NormalLoader()
 {
-  if (!gSingleton) {
-    gSingleton = CreateImageLoader().take();
+  if (!gNormalLoader) {
+    gNormalLoader = CreateImageLoader().take();
   }
-  return gSingleton;
+  return gNormalLoader;
 }
 
 imgLoader*
-imgLoader::PBSingleton()
+imgLoader::PrivateBrowsingLoader()
 {
-  if (!gPBSingleton) {
-    gPBSingleton = CreateImageLoader().take();
-    gPBSingleton->RespectPrivacyNotifications();
+  if (!gPrivateBrowsingLoader) {
+    gPrivateBrowsingLoader = CreateImageLoader().take();
+    gPrivateBrowsingLoader->RespectPrivacyNotifications();
   }
-  return gPBSingleton;
+  return gPrivateBrowsingLoader;
 }
 
 imgLoader::imgLoader()
@@ -1454,8 +1454,10 @@ imgLoader::ClearCacheForControlledDocument(nsIDocument* aDoc)
 void
 imgLoader::Shutdown()
 {
-  NS_IF_RELEASE(gSingleton);
-  NS_IF_RELEASE(gPBSingleton);
+  NS_IF_RELEASE(gNormalLoader);
+  gNormalLoader = nullptr;
+  NS_IF_RELEASE(gPrivateBrowsingLoader);
+  gPrivateBrowsingLoader = nullptr;
 }
 
 nsresult
