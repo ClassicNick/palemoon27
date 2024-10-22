@@ -2855,12 +2855,6 @@ nsStyleDisplay::nsStyleDisplay(StyleStructContext aContext)
   mPerspectiveOrigin[0].SetPercentValue(0.5f);
   mPerspectiveOrigin[1].SetPercentValue(0.5f);
 
-  mTransformOrigin[0].SetPercentValue(0.5f); // Transform is centered on origin
-  mTransformOrigin[1].SetPercentValue(0.5f);
-  mTransformOrigin[2].SetCoordValue(0);
-  mPerspectiveOrigin[0].SetPercentValue(0.5f);
-  mPerspectiveOrigin[1].SetPercentValue(0.5f);
-
   // Initial value for mScrollSnapDestination is "0px 0px"
   mScrollSnapDestination.SetInitialZeroValues();
 
