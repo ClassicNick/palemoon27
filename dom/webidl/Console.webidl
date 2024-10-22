@@ -5,8 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 [Exposed=(Window,Worker,WorkerDebugger),
- ClassString="Console",
- ProtoObjectHack]
+ ClassString="Console"]
 namespace console {
   void log(any... data);
   void info(any... data);
