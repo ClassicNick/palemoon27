@@ -14701,6 +14701,25 @@ nsGlobalWindow::Orientation() const
 #endif
 
 NS_IMETHODIMP
+nsGlobalWindow::GetConsole(JSContext* aCx,
+                           JS::MutableHandle<JS::Value> aConsole)
+{
+  FORWARD_TO_INNER(GetConsole, (aCx, aConsole), NS_ERROR_FAILURE);
+
+  ErrorResult rv;
+  RefPtr<Console> console = GetConsole(rv);
+  if (rv.Failed()) {
+    return rv.StealNSResult();
+  }
+
+  if (!GetOrCreateDOMReflector(aCx, console, aConsole)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsGlobalWindow::SetConsole(JSContext* aCx, JS::Handle<JS::Value> aValue)
 {
   ErrorResult rv;
