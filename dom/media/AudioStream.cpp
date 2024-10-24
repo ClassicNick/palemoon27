@@ -318,7 +318,7 @@ nsresult
 AudioStream::Init(uint32_t aNumChannels, uint32_t aRate,
                   const dom::AudioChannel aAudioChannel)
 {
-  mStartTime = TimeStamp::Now();
+  auto startTime = TimeStamp::Now();
   mIsFirst = CubebUtils::GetFirstStream();
 
   if (!CubebUtils::GetCubebContext()) {
@@ -350,13 +350,13 @@ AudioStream::Init(uint32_t aNumChannels, uint32_t aRate,
   params.format = ToCubebFormat<AUDIO_OUTPUT_FORMAT>::value;
   mAudioClock.Init();
 
-  return OpenCubeb(params);
+  return OpenCubeb(params, startTime);
 }
 
 // This code used to live inside AudioStream::Init(), but on Mac (others?)
 // it has been known to take 300-800 (or even 8500) ms to execute(!)
 nsresult
-AudioStream::OpenCubeb(cubeb_stream_params &aParams)
+AudioStream::OpenCubeb(cubeb_stream_params &aParams, TimeStamp aStartTime)
 {
   cubeb* cubebContext = CubebUtils::GetCubebContext();
   if (!cubebContext) {
@@ -389,11 +389,9 @@ AudioStream::OpenCubeb(cubeb_stream_params &aParams)
 
   mState = INITIALIZED;
 
-  if (!mStartTime.IsNull()) {
-    TimeDuration timeDelta = TimeStamp::Now() - mStartTime;
-    LOG("creation time %sfirst: %u ms", mIsFirst ? "" : "not ",
-        (uint32_t) timeDelta.ToMilliseconds());
-  }
+  TimeDuration timeDelta = TimeStamp::Now() - aStartTime;
+  LOG("creation time %sfirst: %u ms", mIsFirst ? "" : "not ",
+      (uint32_t) timeDelta.ToMilliseconds());
 
   return NS_OK;
 }
