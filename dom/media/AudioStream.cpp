@@ -413,14 +413,6 @@ void
 AudioStream::Start()
 {
   MonitorAutoLock mon(mMonitor);
-  StartUnlocked();
-}
-
-void
-AudioStream::StartUnlocked()
-{
-  mMonitor.AssertCurrentThreadOwns();
-
   if (mState == INITIALIZED) {
     mState = STARTED;
     int r;
