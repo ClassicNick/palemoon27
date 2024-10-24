@@ -3409,9 +3409,10 @@ Element::Animate(const Nullable<ElementOrCSSPseudoElement>& aTarget,
     return nullptr;
   }
 
+  AnimationTimeline* timeline = referenceElement->OwnerDoc()->Timeline();
   RefPtr<Animation> animation =
     Animation::Constructor(global, effect,
-                           referenceElement->OwnerDoc()->Timeline(), aError);
+                           Optional<AnimationTimeline*>(timeline), aError);
   if (aError.Failed()) {
     return nullptr;
   }
