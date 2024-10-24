@@ -130,6 +130,15 @@ public:
                   const nsACString &hostRoute, uint16_t portRoute,
                   nsIProxyInfo *proxyInfo);
 
+    // Alternative Init method for when the IP-address of the host
+    // has been pre-resolved using a alternative means (e.g. FlyWeb service
+    // info).
+    nsresult InitPreResolved(const char **socketTypes, uint32_t typeCount,
+                             const nsACString &host, uint16_t port,
+                             const nsACString &hostRoute, uint16_t portRoute,
+                             nsIProxyInfo *proxyInfo,
+                             const mozilla::net::NetAddr* addr);
+
     // this method instructs the socket transport to use an already connected
     // socket with the given address.
     nsresult InitWithConnectedSocket(PRFileDesc *socketFD,
@@ -319,6 +328,7 @@ private:
     mozilla::net::NetAddr   mSelfAddr; // getsockname()
     mozilla::Atomic<bool, mozilla::Relaxed> mNetAddrIsSet;
     mozilla::Atomic<bool, mozilla::Relaxed> mSelfAddrIsSet;
+	mozilla::Atomic<bool, Relaxed>   mNetAddrPreResolved;
 
     nsAutoPtr<mozilla::net::NetAddr> mBindAddr;
 
