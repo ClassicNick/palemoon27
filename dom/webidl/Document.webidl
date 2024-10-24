@@ -233,6 +233,12 @@ partial interface Document {
   // Gecko-specific fullscreen bits
   readonly attribute boolean mozFullScreen;
   void mozCancelFullScreen();
+
+  // Events handlers
+  [Func="nsDocument::IsUnprefixedFullscreenEnabled"]
+  attribute EventHandler onfullscreenchange;
+  [Func="nsDocument::IsUnprefixedFullscreenEnabled"]
+  attribute EventHandler onfullscreenerror;
 };
 
 // http://dvcs.w3.org/hg/pointerlock/raw-file/default/index.html#extensions-to-the-document-interface
