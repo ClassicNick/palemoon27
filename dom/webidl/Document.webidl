@@ -223,7 +223,7 @@ partial interface Document {
 // http://dvcs.w3.org/hg/fullscreen/raw-file/tip/Overview.html#api
 partial interface Document {
   // Note: Per spec the 'S' in these two is lowercase, but the "Moz"
-  // versions hve it uppercase.
+  // versions have it uppercase.
   readonly attribute boolean mozFullScreenEnabled;
   [Throws]
   readonly attribute Element? mozFullScreenElement;
