@@ -991,7 +991,7 @@ nsStyleSVG::CalcDifference(const nsStyleSVG& aNewData) const
 
   // length of stroke dasharrays are the same (tested above) - check entries
   for (uint32_t i=0; i<mStrokeDasharrayLength; i++) {
-    if (mStrokeDasharray[i] != aOther.mStrokeDasharray[i]) {
+    if (mStrokeDasharray[i] != aNewData.mStrokeDasharray[i]) {
       return hint | nsChangeHint_RepaintFrame;
     }
   }

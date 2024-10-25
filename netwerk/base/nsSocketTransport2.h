@@ -328,7 +328,7 @@ private:
     mozilla::net::NetAddr   mSelfAddr; // getsockname()
     mozilla::Atomic<bool, mozilla::Relaxed> mNetAddrIsSet;
     mozilla::Atomic<bool, mozilla::Relaxed> mSelfAddrIsSet;
-	mozilla::Atomic<bool, Relaxed>   mNetAddrPreResolved;
+	mozilla::Atomic<bool, mozilla::Relaxed>   mNetAddrPreResolved;
 
     nsAutoPtr<mozilla::net::NetAddr> mBindAddr;
 
