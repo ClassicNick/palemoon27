@@ -28,6 +28,7 @@
 #include "nsGlobalWindow.h"
 
 #include "mozilla/dom/BindingUtils.h"
+#include "mozilla/dom/Date.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/ScriptSettings.h"
 
