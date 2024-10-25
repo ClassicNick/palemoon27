@@ -5614,3 +5614,11 @@ pref("plugins.rewrite_youtube_embeds", true);
 pref("layout.css.color-adjust.enabled", true);
 
 pref("devtools.serviceWorkers.testing.enabled", false);
+
+// Once bug 1276272 is resolved, we will trun this preference to default ON in
+// non-release channels.
+#ifdef RELEASE_BUILD
+pref("media.seekToNextFrame.enabled", false);
+#else
+pref("media.seekToNextFrame.enabled", true);
+#endif
