@@ -2629,11 +2629,11 @@ WebSocketImpl::GetStatus(nsresult* aStatus)
 
 namespace {
 
-class CancelRunnable final : public WorkerRunnable
+class CancelRunnable final : public MainThreadWorkerRunnable
 {
 public:
   CancelRunnable(WorkerPrivate* aWorkerPrivate, WebSocketImpl* aImpl)
-    : WorkerRunnable(aWorkerPrivate, WorkerThreadUnchangedBusyCount)
+    : MainThreadWorkerRunnable(aWorkerPrivate)
     , mImpl(aImpl)
   {
   }
@@ -2649,23 +2649,6 @@ public:
                bool aRunResult) override
   {
     aWorkerPrivate->ModifyBusyCountFromWorker(false);
-  }
-
-  bool
-  PreDispatch(WorkerPrivate* aWorkerPrivate) override
-  {
-    // We don't call WorkerRunnable::PreDispatch because it would assert the
-    // wrong thing about which thread we're on.
-    AssertIsOnMainThread();
-    return true;
-  }
-
-  void
-  PostDispatch(WorkerPrivate* aWorkerPrivate, bool aDispatchResult) override
-  {
-    // We don't call WorkerRunnable::PostDispatch because it would assert the
-    // wrong thing about which thread we're on.
-    AssertIsOnMainThread();
   }
 
 private:
