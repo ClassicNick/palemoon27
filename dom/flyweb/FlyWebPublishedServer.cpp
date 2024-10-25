@@ -31,16 +31,9 @@ FlyWebPublishedServer::FlyWebPublishedServer(nsPIDOMWindow* aOwner,
   , mOwnerWindowID(aOwner ? aOwner->WindowID() : 0)
   , mPublishPromise(aPublishPromise)
   , mName(aName)
-  , mCategory(aOptions.mCategory)
-  , mHttp(aOptions.mHttp)
-  , mMessage(aOptions.mMessage)
   , mUiUrl(aOptions.mUiUrl)
   , mIsRegistered(true) // Registered by the FlyWebService
 {
-  if (mCategory.IsEmpty()) {
-    mCategory.SetIsVoid(true);
-  }
-
   mHttpServer = new HttpServer();
   mHttpServer->Init(-1, Preferences::GetBool("flyweb.use-tls", false), this);
 }
