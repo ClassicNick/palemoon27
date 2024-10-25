@@ -177,7 +177,6 @@ HttpServer::SendResponse(InternalRequest* aRequest, InternalResponse* aResponse)
 already_AddRefed<nsITransportProvider>
 HttpServer::AcceptWebSocket(InternalRequest* aConnectRequest,
                             const Optional<nsAString>& aProtocol,
-                            nsACString& aNegotiatedExtensions,
                             ErrorResult& aRv)
 {
   for (Connection* conn : mConnections) {
@@ -185,7 +184,7 @@ HttpServer::AcceptWebSocket(InternalRequest* aConnectRequest,
       continue;
     }
     nsCOMPtr<nsITransportProvider> provider =
-      conn->HandleAcceptWebSocket(aProtocol, aNegotiatedExtensions, aRv);
+      conn->HandleAcceptWebSocket(aProtocol, aRv);
     if (aRv.Failed()) {
       conn->Close();
     }
@@ -792,7 +791,6 @@ HttpServer::Connection::TryHandleResponse(InternalRequest* aRequest,
 
 already_AddRefed<nsITransportProvider>
 HttpServer::Connection::HandleAcceptWebSocket(const Optional<nsAString>& aProtocol,
-                                              nsACString& aNegotiatedExtensions,
                                               ErrorResult& aRv)
 {
   MOZ_ASSERT(mPendingWebSocketRequest);
@@ -832,14 +830,14 @@ HttpServer::Connection::HandleAcceptWebSocket(const Optional<nsAString>& aProtoc
   }
   headers->Set(NS_LITERAL_CSTRING("Sec-WebSocket-Accept"), hash, aRv);
 
-  nsAutoCString extensions;
+  nsAutoCString extensions, negotiatedExtensions;
   mPendingWebSocketRequest->Headers()->
     Get(NS_LITERAL_CSTRING("Sec-WebSocket-Extensions"), extensions, aRv);
   mozilla::net::ProcessServerWebSocketExtensions(extensions,
-                                                 aNegotiatedExtensions);
-  if (!aNegotiatedExtensions.IsEmpty()) {
+                                                 negotiatedExtensions);
+  if (!negotiatedExtensions.IsEmpty()) {
     headers->Set(NS_LITERAL_CSTRING("Sec-WebSocket-Extensions"),
-                 aNegotiatedExtensions, aRv);
+                 negotiatedExtensions, aRv);
   }
 
   RefPtr<TransportProvider> result = new TransportProvider();
