@@ -155,6 +155,7 @@ nsHttpConnection::StartSpdy(uint8_t spdyVersion)
 
     mUsingSpdyVersion = spdyVersion;
     mEverUsedSpdy = true;
+    mSpdySession = ASpdySession::NewSpdySession(spdyVersion, mSocketTransport);
 
     if (!mReportedSpdy) {
         mReportedSpdy = true;
@@ -205,7 +206,6 @@ nsHttpConnection::StartSpdy(uint8_t spdyVersion)
         mProxyConnectInProgress = false;
     }
 
-    mSpdySession = ASpdySession::NewSpdySession(spdyVersion, mSocketTransport);
     bool spdyProxy = mConnInfo->UsingHttpsProxy() && !mTLSFilter;
     if (spdyProxy) {
         RefPtr<nsHttpConnectionInfo> wildCardProxyCi;
