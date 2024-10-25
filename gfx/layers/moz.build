@@ -422,6 +422,7 @@ LOCAL_INCLUDES += [
     '/dom/base',       # for nsDocument.h
     '/layout/base',    # for TouchManager.h
     '/layout/generic', # for nsTextFrame.h
+    '/media/libyuv/include', # for libyuv.h
 ]
 
 FINAL_LIBRARY = 'xul'
