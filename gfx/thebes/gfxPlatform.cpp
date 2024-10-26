@@ -710,7 +710,8 @@ gfxPlatform::Init()
     gPlatform->mScreenReferenceDrawTarget =
         gPlatform->CreateOffscreenContentDrawTarget(IntSize(1, 1),
                                                     SurfaceFormat::B8G8R8A8);
-    if (!gPlatform->mScreenReferenceDrawTarget) {
+    if (!gPlatform->mScreenReferenceDrawTarget ||
+        !gPlatform->mScreenReferenceDrawTarget->IsValid()) {
       NS_RUNTIMEABORT("Could not initialize mScreenReferenceDrawTarget");
     }
 
@@ -1001,9 +1002,6 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
 
   if (!aTarget) {
     aTarget = gfxPlatform::GetPlatform()->ScreenReferenceDrawTarget();
-    if (!aTarget) {
-      return nullptr;
-    }
   }
 
   void *userData = aSurface->GetData(&kSourceSurface);
