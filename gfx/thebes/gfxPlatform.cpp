@@ -593,7 +593,10 @@ gfxPlatform::Init()
     gfxPrefs::GetSingleton();
     MediaPrefs::GetSingleton();
 
-    GPUProcessManager::Initialize();
+
+    if (XRE_IsParentProcess()) {
+      GPUProcessManager::Initialize();
+    }
 
     auto fwd = new CrashStatsLogForwarder("GraphicsCriticalError");
     fwd->SetCircularBufferSize(gfxPrefs::GfxLoggingCrashLength());
@@ -839,7 +842,9 @@ gfxPlatform::Shutdown()
     GLContextProviderEGL::Shutdown();
 #endif
 
-    GPUProcessManager::Shutdown();
+    if (XRE_IsParentProcess()) {
+      GPUProcessManager::Shutdown();
+    }
 
     // This is a bit iffy - we're assuming that we were the ones that set the
     // log forwarder in the Factory, so that it's our responsibility to
