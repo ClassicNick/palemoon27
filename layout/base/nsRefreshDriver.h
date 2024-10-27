@@ -75,9 +75,6 @@ public:
   explicit nsRefreshDriver(nsPresContext *aPresContext);
   ~nsRefreshDriver();
 
-  static void InitializeStatics();
-  static void Shutdown();
-
   /**
    * Methods for testing, exposed via nsIDOMWindowUtils.  See
    * nsIDOMWindowUtils.advanceTimeAndRefresh for description.
@@ -235,10 +232,7 @@ public:
    * should stop its timer and forget about its pres context.  This may
    * be called from within a refresh.
    */
-  void Disconnect() {
-    StopTimer();
-    mPresContext = nullptr;
-  }
+  void Disconnect();
 
   bool IsFrozen() { return mFreezeCount > 0; }
 
@@ -318,6 +312,7 @@ public:
   NS_IMETHOD_(MozExternalRefCountType) AddRef(void) override { return TransactionIdAllocator::AddRef(); }
   NS_IMETHOD_(MozExternalRefCountType) Release(void) override { return TransactionIdAllocator::Release(); }
   virtual void WillRefresh(mozilla::TimeStamp aTime) override;
+
 private:
   typedef nsTObserverArray<nsARefreshObserver*> ObserverArray;
   typedef nsTHashtable<nsISupportsHashKey> RequestTable;
@@ -434,6 +429,8 @@ private:
   // turn on or turn off high precision based on various factors
   void ConfigureHighPrecision();
   void SetHighPrecisionTimersEnabled(bool aEnable);
+
+  static void Shutdown();
 
   // `true` if we are currently in jank-critical mode.
   //
