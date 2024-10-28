@@ -1635,7 +1635,7 @@ nsHttpChannel::ProcessResponse()
     }
     if (referrer) {
         nsCOMPtr<nsILoadContextInfo> lci = GetLoadContextInfo(this);
-        mozilla::net::Predictor::UpdateCacheability(mReferrer, mURI, httpStatus,
+        mozilla::net::Predictor::UpdateCacheability(referrer, mURI, httpStatus,
                                                     mRequestHead, mResponseHead,
                                                     lci);
     }
