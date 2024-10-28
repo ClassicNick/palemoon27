@@ -16,6 +16,9 @@ MOCHITEST_MANIFESTS += [
     'test/mochitest.ini',
 ]
 
+BROWSER_CHROME_MANIFESTS += [
+    'test/browser.ini',
+]
 
 EXPORTS += [
     'AlignedTArray.h',
