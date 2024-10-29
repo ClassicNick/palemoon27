@@ -1386,6 +1386,18 @@ struct ObjectGroupCompartment::AllocationSiteKey : public DefaultHasher<Allocati
     }
 };
 
+class ObjectGroupCompartment::AllocationSiteTable
+  : public JS::WeakCache<js::GCHashMap<AllocationSiteKey, ReadBarrieredObjectGroup,
+                                       AllocationSiteKey, SystemAllocPolicy>>
+{
+    using Table = js::GCHashMap<AllocationSiteKey, ReadBarrieredObjectGroup,
+                                AllocationSiteKey, SystemAllocPolicy>;
+    using Base = JS::WeakCache<Table>;
+
+  public:
+    explicit AllocationSiteTable(Zone* zone) : Base(zone, Table()) {}
+};
+
 /* static */ ObjectGroup*
 ObjectGroup::allocationSiteGroup(JSContext* cx, JSScript* scriptArg, jsbytecode* pc,
                                  JSProtoKey kind, HandleObject protoArg /* = nullptr */)
@@ -1405,7 +1417,7 @@ ObjectGroup::allocationSiteGroup(JSContext* cx, JSScript* scriptArg, jsbytecode*
         cx->compartment()->objectGroups.allocationSiteTable;
 
     if (!table) {
-        table = cx->new_<ObjectGroupCompartment::AllocationSiteTable>();
+        table = cx->new_<ObjectGroupCompartment::AllocationSiteTable>(cx->zone());
         if (!table || !table->init()) {
             ReportOutOfMemory(cx);
             js_delete(table);
@@ -1476,7 +1488,7 @@ ObjectGroupCompartment::replaceAllocationSiteGroup(JSScript* script, jsbytecode*
 
     AllocationSiteTable::Ptr p = allocationSiteTable->lookup(key);
     MOZ_RELEASE_ASSERT(p);
-    allocationSiteTable->remove(p);
+    allocationSiteTable->get().remove(p);
     {
         AutoEnterOOMUnsafeRegion oomUnsafe;
         if (!allocationSiteTable->putNew(key, group))
@@ -1737,8 +1749,6 @@ ObjectGroupCompartment::sweep(FreeOp* fop)
         arrayObjectTable->sweep();
     if (plainObjectTable)
         plainObjectTable->sweep();
-    if (allocationSiteTable)
-        allocationSiteTable->sweep();
 }
 
 void
