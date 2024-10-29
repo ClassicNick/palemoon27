@@ -237,6 +237,8 @@ public:
                              bool aSetValueChanged);
   void SetFiles(nsIDOMFileList* aFiles, bool aSetValueChanged);
 
+  void MozSetDndFilesAndDirectories(const nsTArray<OwningFileOrDirectory>& aSequence);
+
   // Called when a nsIFilePicker or a nsIColorPicker terminate.
   void PickerClosed();
 
@@ -720,10 +722,7 @@ public:
     SetHTMLBoolAttr(nsGkAtoms::webkitdirectory, aValue, aRv);
   }
 
-  void GetWebkitEntries(nsTArray<RefPtr<Entry>>& aSequence, ErrorResult& aRv)
-  {
-    aRv.Throw(NS_ERROR_NOT_IMPLEMENTED);
-  }
+  void GetWebkitEntries(nsTArray<RefPtr<Entry>>& aSequence);
 
   bool IsFilesAndDirectoriesSupported() const;
 
@@ -960,6 +959,8 @@ protected:
    * Update mFileList with the currently selected file.
    */
   void UpdateFileList();
+
+  void UpdateEntries(const nsTArray<OwningFileOrDirectory>& aFilesOrDirectories);
 
   /**
    * Called after calling one of the SetFilesOrDirectories() functions.
@@ -1343,6 +1344,7 @@ protected:
 #endif
 
   RefPtr<FileList>  mFileList;
+  Sequence<RefPtr<Entry>> mEntries;
 
   nsString mStaticDocFileList;
 
