@@ -103,14 +103,14 @@ FormSubmitObserver.prototype =
     if (!aInvalidElements.length) {
       return;
     }
-    
-    // Insure that this is the FormSubmitObserver associated with the form
+
+    // Insure that this is the FormSubmitObserver associated with the
     // element / window this notification is about.
-    if (this._content != aFormElement.ownerDocument.defaultView.top.document.defaultView) {
+    let element = aInvalidElements.queryElementAt(0, Ci.nsISupports);
+    if (this._content != element.ownerDocument.defaultView.top.document.defaultView) {
       return;
     }
 
-    let element = aInvalidElements.queryElementAt(0, Ci.nsISupports);
     if (!(element instanceof HTMLInputElement ||
           element instanceof HTMLTextAreaElement ||
           element instanceof HTMLSelectElement ||
