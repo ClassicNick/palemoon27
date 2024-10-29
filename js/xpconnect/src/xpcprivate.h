@@ -3374,6 +3374,7 @@ protected:
     bool ParseString(const char* name, nsCString& prop);
     bool ParseString(const char* name, nsString& prop);
     bool ParseId(const char* name, JS::MutableHandleId id);
+    bool ParseUInt32(const char* name, uint32_t* prop);
 
     JSContext* mCx;
     JS::RootedObject mObject;
@@ -3398,6 +3399,7 @@ public:
         , invisibleToDebugger(false)
         , discardSource(false)
         , metadata(cx)
+        , userContextId(0)
     { }
 
     virtual bool Parse();
@@ -3418,6 +3420,7 @@ public:
     bool discardSource;
     GlobalProperties globalProperties;
     JS::RootedValue metadata;
+    uint32_t userContextId;
 
 protected:
     bool ParseGlobalProperties();
