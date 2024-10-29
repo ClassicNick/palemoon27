@@ -846,6 +846,8 @@ struct JSCompartment
 
     js::ArgumentsObject* getOrCreateArgumentsTemplateObject(JSContext* cx, bool mapped);
 
+    js::ArgumentsObject* maybeArgumentsTemplateObject(bool mapped) const;
+
   public:
     // Aggregated output used to collect JSScript hit counts when code coverage
     // is enabled.
