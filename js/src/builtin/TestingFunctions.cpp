@@ -3346,6 +3346,11 @@ SetGCCallback(JSContext* cx, unsigned argc, Value* vp)
 
     if (strcmp(action.ptr(), "minorGC") == 0) {
         auto info = js_new<gcCallback::MinorGC>();
+        if (!info) {
+            ReportOutOfMemory(cx);
+            return false;
+        }
+
         info->phases = phases;
         info->active = true;
         JS_SetGCCallback(cx->runtime(), gcCallback::minorGC, info);
@@ -3363,6 +3368,11 @@ SetGCCallback(JSContext* cx, unsigned argc, Value* vp)
         }
 
         auto info = js_new<gcCallback::MajorGC>();
+        if (!info) {
+            ReportOutOfMemory(cx);
+            return false;
+        }
+
         info->phases = phases;
         info->depth = depth;
         JS_SetGCCallback(cx->runtime(), gcCallback::majorGC, info);
