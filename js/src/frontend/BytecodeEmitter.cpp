@@ -1027,17 +1027,9 @@ BytecodeEmitter::enterNestedScope(StmtInfoBCE* stmt, ObjectBox* objbox, StmtType
 bool
 BytecodeEmitter::popStatement()
 {
-    JumpTarget brk{ -1 };
-    return popStatement(brk);
-}
-
-bool
-BytecodeEmitter::popStatement(JumpTarget brk)
-{
     if (!innermostStmt()->isTrying()) {
-        if (brk.offset == -1 && !emitJumpTarget(&brk))
+        if (!emitJumpTargetAndPatch(innermostStmt()->breaks))
             return false;
-        patchJumpsToTarget(innermostStmt()->breaks, brk);
         patchJumpsToTarget(innermostStmt()->continues, innermostStmt()->update);
     }
 
@@ -5756,7 +5748,7 @@ BytecodeEmitter::emitSpread(bool allowSelfHosted)
     if (!setSrcNoteOffset(noteIndex, 0, beq.offset - initialJump.offset))
         return false;
 
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
 
     if (!tryNoteList.append(JSTRY_FOR_OF, stackDepth, top.offset, brk.offset))
@@ -5867,7 +5859,7 @@ BytecodeEmitter::emitForOf(ParseNode* pn)
 
     // Fixup breaks and continues.
     // For StmtType::SPREAD, just pop innermostStmt().
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
 
     if (!tryNoteList.append(JSTRY_FOR_OF, stackDepth, top.offset, brk.offset))
@@ -5963,7 +5955,7 @@ BytecodeEmitter::emitForIn(ParseNode* pn)
         return false;
 
     // Fix up breaks and continues.
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
 
     // Pop the enumeration value.
@@ -6147,7 +6139,7 @@ BytecodeEmitter::emitCStyleFor(ParseNode* pn)
         return false;
 
     /* Now fixup all breaks and continues. */
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
     return true;
 }
@@ -6310,7 +6302,7 @@ BytecodeEmitter::emitComprehensionForOf(ParseNode* pn)
         return false;
 
     // Fixup breaks and continues.
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
 
     if (!tryNoteList.append(JSTRY_FOR_OF, stackDepth, top.offset, brk.offset))
@@ -6426,7 +6418,7 @@ BytecodeEmitter::emitComprehensionForIn(ParseNode* pn)
         return false;
 
     // Fix up breaks and continues.
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
 
     // Pop the enumeration value.
@@ -6724,7 +6716,7 @@ BytecodeEmitter::emitDo(ParseNode* pn)
     if (!setSrcNoteOffset(noteIndex, 0, 1 + (continues.offset - top.offset)))
         return false;
 
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
     return true;
 }
@@ -6795,7 +6787,7 @@ BytecodeEmitter::emitWhile(ParseNode* pn)
     if (!setSrcNoteOffset(noteIndex, 0, beq.offset - jmp.offset))
         return false;
 
-    if (!popStatement(brk))
+    if (!popStatement())
         return false;
     return true;
 }
