@@ -1102,6 +1102,8 @@ IonBuilder::buildInline(IonBuilder* callerBuilder, MResumePoint* callerResumePoi
     // Discard unreferenced & pre-allocated resume points.
     replaceMaybeFallbackFunctionGetter(nullptr);
 
+    MOZ_ASSERT(iterators_.empty(), "Iterators should be added to outer builder");
+
     if (!info().isAnalysis() && !abortedPreliminaryGroups().empty()) {
         abortReason_ = AbortReason_PreliminaryObjects;
         return false;
@@ -13486,7 +13488,7 @@ IonBuilder::jsop_iter(uint8_t flags)
     MDefinition* obj = current->pop();
     MInstruction* ins = MIteratorStart::New(alloc(), obj, flags);
 
-    if (!iterators_.append(ins))
+    if (!outermostBuilder()->iterators_.append(ins))
         return false;
 
     current->add(ins);
