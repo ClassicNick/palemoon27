@@ -186,7 +186,7 @@ nsresult AudioStream::SetPlaybackRate(double aPlaybackRate)
     return NS_ERROR_FAILURE;
   }
 
-  mAudioClock.SetPlaybackRateUnlocked(aPlaybackRate);
+  mAudioClock.SetPlaybackRate(aPlaybackRate);
   mOutRate = mInRate / aPlaybackRate;
 
   if (mAudioClock.GetPreservesPitch()) {
@@ -683,7 +683,7 @@ int64_t AudioClock::GetPosition(int64_t frames) const
   return mFrameHistory->GetPosition(frames);
 }
 
-void AudioClock::SetPlaybackRateUnlocked(double aPlaybackRate)
+void AudioClock::SetPlaybackRate(double aPlaybackRate)
 {
   mOutRate = static_cast<uint32_t>(mInRate / aPlaybackRate);
 }
