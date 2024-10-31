@@ -78,6 +78,12 @@ public:
     eNotCapturing = false
   };
 
+  enum AudibleChangedReasons : uint32_t {
+    eVolumeChanged = 0,
+    eDataAudibleChanged = 1,
+    ePauseStateChanged = 2
+  };
+
   /**
    * Returns the AudioChannelServce singleton.
    * If AudioChannelServce is not exist, create and return new one.
@@ -122,7 +128,9 @@ public:
    * it would dispatch the playback event to observers which want to know the
    * actual audible state of the window.
    */
-  void AudioAudibleChanged(AudioChannelAgent* aAgent, AudibleState aAudible);
+  void AudioAudibleChanged(AudioChannelAgent* aAgent,
+                           AudibleState aAudible,
+                           AudibleChangedReasons aReason);
 
   /* Methods for the BrowserElementAudioChannel */
   float GetAudioChannelVolume(nsPIDOMWindow* aWindow, AudioChannel aChannel);
@@ -251,7 +259,9 @@ private:
     }
 
     void AudioFocusChanged(AudioChannelAgent* aNewPlayingAgent, bool aActive);
-    void AudioAudibleChanged(AudioChannelAgent* aAgent, AudibleState aAudible);
+    void AudioAudibleChanged(AudioChannelAgent* aAgent,
+                             AudibleState aAudible,
+                             AudibleChangedReasons aReason);
 
     void AppendAgent(AudioChannelAgent* aAgent, AudibleState aAudible);
     void RemoveAgent(AudioChannelAgent* aAgent);
@@ -272,8 +282,10 @@ private:
     void AudioCapturedChanged(AudioChannelAgent* aAgent,
                               AudioCaptureState aCapture);
 
-    void AppendAudibleAgentIfNotContained(AudioChannelAgent* aAgent);
-    void RemoveAudibleAgentIfContained(AudioChannelAgent* aAgent);
+    void AppendAudibleAgentIfNotContained(AudioChannelAgent* aAgent,
+                                          AudibleChangedReasons aReason);
+    void RemoveAudibleAgentIfContained(AudioChannelAgent* aAgent,
+                                       AudibleChangedReasons aReason);
 
     void AppendAgentAndIncreaseAgentsNum(AudioChannelAgent* aAgent);
     void RemoveAgentAndReduceAgentsNum(AudioChannelAgent* aAgent);
@@ -282,7 +294,9 @@ private:
     bool IsLastAudibleAgent() const;
 
     void NotifyAudioAudibleChanged(nsPIDOMWindow* aWindow,
-                                   AudibleState aAudible);
+                                   AudibleState aAudible,
+                                   AudibleChangedReasons aReason);
+
     void NotifyChannelActive(uint64_t aWindowID, AudioChannel aChannel,
                              bool aActive);
 
