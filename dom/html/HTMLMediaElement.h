@@ -716,6 +716,11 @@ public:
       mTextTrackManager->NotifyCueRemoved(aCue);
     }
   }
+  void NotifyCueUpdated(TextTrackCue *aCue) {
+    if (mTextTrackManager) {
+      mTextTrackManager->NotifyCueUpdated(aCue);
+    }
+  }
 
   /**
    * A public wrapper for FinishDecoderSetup()
