@@ -4768,7 +4768,7 @@ void HTMLMediaElement::FireTimeUpdate(bool aPeriodic)
   // us before our parent. In that case UnbindFromTree will call us
   // when our parent is unlinked.
   if (mTextTrackManager) {
-    mTextTrackManager->UpdateCueDisplay();
+    mTextTrackManager->TimeMarchesOn();
   }
 }
 
