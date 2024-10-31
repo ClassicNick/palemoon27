@@ -5622,6 +5622,8 @@ pref("layout.css.color-adjust.enabled", true);
 
 pref("devtools.serviceWorkers.testing.enabled", false);
 
+pref("dom.audiochannel.audioCompeting", false);
+
 // Disable Node.rootNode in release builds.
 #ifdef RELEASE_BUILD
 pref("dom.node.rootNode.enabled", false);
