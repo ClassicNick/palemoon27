@@ -3623,6 +3623,8 @@ void HTMLMediaElement::DecodeError()
   RemoveMediaElementFromURITable();
   mLoadingSrc = nullptr;
   mMediaSource = nullptr;
+  AudioTracks()->EmptyTracks();
+  VideoTracks()->EmptyTracks();
   if (mIsLoadingFromSourceChildren) {
     mError = nullptr;
     if (mSourceLoadCandidate) {
