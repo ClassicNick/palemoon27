@@ -71,7 +71,109 @@ builds:
       - b2g
     types:
       opt:
-        task: tasks/builds/b2g_flame_kk_eng.yml
+        task: tasks/builds/opt_linux64_pgo.yml
+  macosx64:
+    platforms:
+      - MacOSX64
+    types:
+      opt:
+        task: tasks/builds/opt_macosx64.yml
+      debug:
+        task: tasks/builds/dbg_macosx64.yml
+  macosx64-st-an:
+    platforms:
+      - MacOSX64 Static Analysis
+    types:
+      opt:
+        task: tasks/builds/opt_macosx64_st-an.yml
+  linux64-mulet-haz:
+    platforms:
+      - Mulet Linux
+    types:
+      debug:
+        task: tasks/builds/mulet_haz_linux.yml
+  sm-plain:
+    platforms:
+      - Linux64
+    types:
+      opt:
+        task: tasks/builds/sm_plain.yml
+      debug:
+        task: tasks/builds/sm_plaindebug.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-nonunified:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_nonunified.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-arm-sim:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_arm_sim.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-arm64-sim:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_arm64_sim.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-arm64-sim:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_arm64_sim.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-arm-sim-osx:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_arm_sim_osx.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-compacting:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_compacting.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
+  sm-rootanalysis:
+    platforms:
+      - Linux64
+    types:
+      debug:
+        task: tasks/builds/sm_rootanalysis.yml
+    when:
+      file_patterns:
+       - js/public/**
+       - js/src/**
 
 tests:
   cppunit:
