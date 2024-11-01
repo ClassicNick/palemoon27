@@ -195,17 +195,10 @@ README_EOF
 		cp ${SRCDIR}/../../LICENSE ${tgtpath}/
 	fi
 
-<<<<<<< HEAD
 	# copy patches dir, if it currently exists in DIST
 	if [ -d ${DIST}/patches ]; then
 		cp -pPR ${DIST}/patches ${tgtpath}
 	elif [ -d ${SRCDIR}/../../patches ]; then
-=======
-	# copy patches dir, if it currently exists in STAGING
-	if [ -d ${STAGING}/patches ]; then
-		cp -pPR ${STAGING}/patches ${tgtpath}
-	elif [ -d ${TOPSRCDIR}/patches ]; then
->>>>>>> 275003c073 (Bug 1273917 - Create the SM(pkg) build for taskcluster; r=sfink)
 		cp -pPR ${TOPSRCDIR}/patches ${tgtpath}
 	fi
 
