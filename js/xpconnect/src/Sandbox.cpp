@@ -1248,7 +1248,7 @@ nsXPCComponents_utils_Sandbox::Construct(nsIXPConnectWrappedNative* wrapper, JSC
  * we use the related Codebase Principal for the sandbox.
  */
 bool
-ParsePrincipal(JSContext* cx, HandleString codebase, const PrincipalOriginAttributes& aAttrs,
+ParsePrincipal(JSContext* cx, HandleString codebase, const OriginAttributes& aAttrs,
                nsIPrincipal** principal)
 {
     MOZ_ASSERT(principal);
@@ -1338,7 +1338,7 @@ GetExpandedPrincipal(JSContext* cx, HandleObject arrayObj, nsIExpandedPrincipal*
 
             // We use a default originAttributes here because we don't support
             // passing a userContextId with an array.
-            PrincipalOriginAttributes attrs;
+            OriginAttributes attrs;
             if (!ParsePrincipal(cx, str, attrs, getter_AddRefs(principal)))
                 return false;
 
@@ -1679,7 +1679,7 @@ nsXPCComponents_utils_Sandbox::CallOrConstruct(nsIXPConnectWrappedNative* wrappe
 
     if (args[0].isString()) {
         RootedString str(cx, args[0].toString());
-        PrincipalOriginAttributes attrs;
+        OriginAttributes attrs;
         attrs.mUserContextId = options.userContextId;
         ok = ParsePrincipal(cx, str, attrs, getter_AddRefs(principal));
         prinOrSop = principal;

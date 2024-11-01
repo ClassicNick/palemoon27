@@ -537,7 +537,7 @@ TextTrackManager::TimeMarchesOn()
   if (NS_WARN_IF(!parentObject)) {
     return;
   }
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(parentObject);
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(parentObject);
 
   if (mMediaElement &&
       (!(mMediaElement->GetPlayedOrSeeked()) || mMediaElement->Seeking())) {
