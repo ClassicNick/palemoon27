@@ -244,6 +244,8 @@ SavedFrame::HashPolicy::hash(const Lookup& lookup)
 /* static */ bool
 SavedFrame::HashPolicy::match(SavedFrame* existing, const Lookup& lookup)
 {
+    MOZ_ASSERT(existing);
+
     if (existing->getLine() != lookup.line)
         return false;
 
