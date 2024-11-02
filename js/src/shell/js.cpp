@@ -5267,8 +5267,8 @@ WasmLoop(JSContext* cx, unsigned argc, Value* vp)
             return false;
 
         Rooted<TypedArrayObject*> typedArray(cx, &ret->as<TypedArrayObject>());
-        RootedObject exportObj(cx);
-        if (!wasm::Eval(cx, typedArray, importObj, &exportObj)) {
+        RootedWasmInstanceObject instanceObj(cx);
+        if (!wasm::Eval(cx, typedArray, importObj, &instanceObj)) {
             // Clear any pending exceptions, we don't care about them
             cx->clearPendingException();
         }
