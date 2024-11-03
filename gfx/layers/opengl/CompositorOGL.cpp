@@ -155,6 +155,8 @@ CompositorOGL::CreateContext()
 void
 CompositorOGL::Destroy()
 {
+  Compositor::Destroy();
+
   if (mTexturePool) {
     mTexturePool->Clear();
     mTexturePool = nullptr;

@@ -18,7 +18,6 @@
 
 #include "mozilla/layers/ImageBridgeChild.h"
 #include "mozilla/layers/CompositorBridgeParent.h"
-#include "mozilla/layers/AsyncTransactionTracker.h"
 #include "mozilla/layers/SharedBufferManagerChild.h"
 
 #include "prlink.h"
@@ -947,8 +946,6 @@ ShutdownXPCOM(nsIServiceManager* aServMgr)
   }
 
   nsCycleCollector_shutdown();
-
-  layers::AsyncTransactionTrackersHolder::Finalize();
 
   PROFILER_MARKER("Shutdown xpcom");
   // If we are doing any shutdown checks, poison writes.
