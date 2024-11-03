@@ -65,11 +65,13 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Option for NSPR logging #
 ###########################
 
-# Set the desired log modules you want an NSPR log be produced by a try run for, or leave blank to disable the feature.
-# This will be passed to NSPR_LOG_MODULES environment variable. Try run will then put a download link for the log file
+# Set the desired log modules you want a log be produced
+# by a try run for, or leave blank to disable the feature.
+# This will be passed to MOZ_LOG environment variable.
+# Try run will then put a download link for all log files
 # on tbpl.mozilla.org.
 
-NSPR_LOG_MODULES = ""
+MOZ_LOG = ""
 
 ####################
 # LOG HANDLING     #
@@ -1036,7 +1038,6 @@ overlay chrome://browser/content/browser.xul chrome://mochikit/content/jetpack-a
         # append mochikit
         extensions.append(os.path.join(SCRIPT_DIR, self.jarDir))
         return extensions
-
 
 class SSLTunnel:
 
