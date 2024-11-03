@@ -699,7 +699,11 @@ public:
     PtrInfo* Add(void* aPointer, nsCycleCollectionParticipant* aParticipant)
     {
       if (mNext == mBlockEnd) {
-        Block* block = static_cast<Block*>(NS_Alloc(sizeof(Block)));
+        Block* block = static_cast<Block*>(malloc(sizeof(Block)));
+        if (!block) {
+          return nullptr;
+        }
+
         *mNextBlock = block;
         mNext = block->mEntries;
         mBlockEnd = block->mEntries + BlockSize;
@@ -2211,6 +2215,10 @@ CCGraphBuilder::AddNode(void* aPtr, nsCycleCollectionParticipant* aParticipant)
   if (!e->mNode) {
     // New entry.
     result = mNodeBuilder.Add(aPtr, aParticipant);
+    if (!result) {
+      return nullptr;
+    }
+
     e->mNode = result;
     NS_ASSERTION(result, "mNodeBuilder.Add returned null");
   } else {
