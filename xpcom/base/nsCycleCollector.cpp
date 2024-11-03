@@ -1055,15 +1055,8 @@ public:
   void InitBlocks()
   {
     mCount = 0;
-    mFreeList = nullptr;
-    StartBlock(&mFirstBlock);
-  }
-
-  void StartBlock(PurpleBlock* aBlock)
-  {
-    MOZ_ASSERT(!mFreeList, "should not have free list");
-    mFreeList = aBlock->mEntries;
-    aBlock->InitNextPointers();
+    mFreeList = mFirstBlock.mEntries;
+    mFirstBlock.InitNextPointers();
   }
 
   void FreeBlocks()
@@ -1121,7 +1114,8 @@ public:
   {
     if (MOZ_UNLIKELY(!mFreeList)) {
       PurpleBlock* b = new PurpleBlock;
-      StartBlock(b);
+      mFreeList = b->mEntries;
+      b->InitNextPointers();
 
       // Add the new block as the second block in the list.
       b->mNext = mFirstBlock.mNext;
