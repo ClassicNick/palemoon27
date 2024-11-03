@@ -1037,6 +1037,7 @@ public:
   nsPurpleBuffer()
   {
     InitBlocks();
+    mFirstBlock.InitNextPointers();
   }
 
   ~nsPurpleBuffer()
@@ -1056,7 +1057,6 @@ public:
   {
     mCount = 0;
     mFreeList = mFirstBlock.mEntries;
-    mFirstBlock.InitNextPointers();
   }
 
   void FreeBlocks()
@@ -1218,6 +1218,7 @@ nsPurpleBuffer::SelectPointers(CCGraphBuilder& aBuilder)
   if (mCount == 0) {
     FreeBlocks();
     InitBlocks();
+    mFirstBlock.InitNextPointers();
   }
 }
 
