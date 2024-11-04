@@ -699,8 +699,7 @@ protected:
 
   RefPtr<ClientIPCAllocator> mAllocator;
   RefPtr<TextureChild> mActor;
-  RefPtr<TextureClientRecycleAllocator> mOldRecycleAllocator;
-  RefPtr<ITextureClientRecycleAllocator> mRecycleAllocator;
+  RefPtr<TextureClientRecycleAllocator> mRecycleAllocator;
   RefPtr<TextureReadLock> mReadLock;
 
   TextureData* mData;
