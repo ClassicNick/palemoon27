@@ -64,3 +64,6 @@ if CONFIG['TARGET_MD_ARCH'] == 'win32':
     RESOURCE_FILES.fonts += [
         'mathfontSymbol.properties',
     ]
+
+if CONFIG['GNU_CXX']:
+    CXXFLAGS += ['-Wno-error=shadow']
