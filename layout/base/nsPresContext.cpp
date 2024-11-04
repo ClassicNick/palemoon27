@@ -2742,21 +2742,6 @@ nsPresContext::IsRootContentDocument() const
   return (f && f->PresContext()->IsChrome());
 }
 
-bool
-nsPresContext::IsCrossProcessRootContentDocument()
-{
-  if (!IsRootContentDocument()) {
-    return false;
-  }
-
-  if (XRE_IsParentProcess()) {
-    return true;
-  }
-
-  TabChild* tabChild = TabChild::GetFrom(mShell);
-  return (tabChild && tabChild->IsRootContentDocument());
-}
-
 bool nsPresContext::GetPaintFlashing() const
 {
   if (!mPaintFlashingInitialized) {
