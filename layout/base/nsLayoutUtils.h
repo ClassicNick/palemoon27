@@ -2564,7 +2564,7 @@ public:
    */
   static void
   TransformToAncestorAndCombineRegions(
-    const nsRect& aBounds,
+    const nsRegion& aRegion,
     nsIFrame* aFrame,
     const nsIFrame* aAncestorFrame,
     nsRegion* aPreciseTargetDest,
