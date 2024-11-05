@@ -932,13 +932,13 @@ ContentChild::ProvideWindowCommon(TabChild* aTabOpener,
     renderFrame = nullptr;
   }
 
-  ShowInfo showInfo(EmptyString(), false, false, true, 0, 0);
-  nsCOMPtr<nsPIDOMWindow> opener = do_QueryInterface(aParent);
+  ShowInfo showInfo(EmptyString(), false, false, true, false, 0, 0);
+  nsPIDOMWindow* opener = nsPIDOMWindow::From(aParent);
   nsIDocShell* openerShell;
   if (opener && (openerShell = opener->GetDocShell())) {
     nsCOMPtr<nsILoadContext> context = do_QueryInterface(openerShell);
     showInfo = ShowInfo(EmptyString(), false,
-                        context->UsePrivateBrowsing(), true,
+                        context->UsePrivateBrowsing(), true, false,
                         aTabOpener->mDPI, aTabOpener->mDefaultScale);
   }
 
