@@ -83,7 +83,7 @@ SelectionManager::SetControlSelectionListener(dom::Element* aFocusedElm)
     return;
 
   // Register 'this' as selection listener for the normal selection.
-  nsCOMPtr<nsISelection> normalSel = frameSel->GetSelection(SelectionType::SELECTION_NORMAL);
+  nsCOMPtr<nsISelection> normalSel = frameSel->GetSelection(SelectionType::eNormal);
   normalSel->AsSelection()->AddSelectionListener(this);
   mCurrCtrlNormalSel = do_GetWeakReference(normalSel);
 
@@ -99,8 +99,7 @@ SelectionManager::AddDocSelectionListener(nsIPresShell* aPresShell)
   const nsFrameSelection* frameSel = aPresShell->ConstFrameSelection();
 
   // Register 'this' as selection listener for the normal selection.
-  Selection* normalSel =
-    frameSel->GetSelection(SelectionType::SELECTION_NORMAL);
+  Selection* normalSel = frameSel->GetSelection(SelectionType::eNormal);
   normalSel->AddSelectionListener(this);
 
   // Register 'this' as selection listener for the spell check selection.
@@ -115,8 +114,7 @@ SelectionManager::RemoveDocSelectionListener(nsIPresShell* aPresShell)
   const nsFrameSelection* frameSel = aPresShell->ConstFrameSelection();
 
   // Remove 'this' registered as selection listener for the normal selection.
-  Selection* normalSel =
-    frameSel->GetSelection(SelectionType::SELECTION_NORMAL);
+  Selection* normalSel = frameSel->GetSelection(SelectionType::eNormal);
   normalSel->RemoveSelectionListener(this);
 
   // Remove 'this' registered as selection listener for the spellcheck
@@ -220,7 +218,7 @@ SelectionManager::ProcessSelectionChanged(SelData* aSelData)
     return;
   }
 
-  if (selection->GetType() == SelectionType::SELECTION_NORMAL) {
+  if (selection->GetType() == SelectionType::eNormal) {
     RefPtr<AccEvent> event =
       new AccTextSelChangeEvent(text, selection, aSelData->mReason);
     text->Document()->FireDelayedEvent(event);

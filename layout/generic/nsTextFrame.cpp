@@ -5673,7 +5673,7 @@ nsTextFrame::GetSelectionTextColors(SelectionType aSelectionType,
                                     nscolor* aBackground)
 {
   switch (aSelectionType) {
-    case SelectionType::SELECTION_NORMAL:
+    case SelectionType::eNormal:
       return aTextPaintStyle.GetSelectionColors(aForeground, aBackground);
     case SelectionType::SELECTION_FIND:
       aTextPaintStyle.GetHighlightColors(aForeground, aBackground);
@@ -5736,7 +5736,7 @@ static bool GetSelectionTextShadow(nsIFrame* aFrame,
                                    nsCSSShadowArray** aShadow)
 {
   switch (aSelectionType) {
-    case SelectionType::SELECTION_NORMAL:
+    case SelectionType::eNormal:
       return aTextPaintStyle.GetSelectionShadow(aShadow);
     default:
       return false;
@@ -6941,7 +6941,7 @@ nsTextFrame::IsVisibleInSelection(nsISelection* aSelection)
   while (sdptr) {
     if (sdptr->mEnd > GetContentOffset() &&
         sdptr->mStart < GetContentEnd() &&
-        sdptr->mSelectionType == SelectionType::SELECTION_NORMAL) {
+        sdptr->mSelectionType == SelectionType::eNormal) {
       found = true;
       break;
     }
