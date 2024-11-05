@@ -1629,7 +1629,7 @@ nsHTMLReflowState::InitAbsoluteConstraints(nsPresContext* aPresContext,
   }
   if (mFlags.mUseAutoBSize) {
     computeSizeFlags =
-      ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoHeight);
+      ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoBSize);
   }
   if (wm.IsOrthogonalTo(cbwm)) {
     if (bStartIsAuto || bEndIsAuto) {
@@ -2334,7 +2334,7 @@ nsHTMLReflowState::InitConstraints(nsPresContext*     aPresContext,
       }
       if (mFlags.mUseAutoBSize) {
         computeSizeFlags =
-          ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoHeight);
+          ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoBSize);
       }
 
       nsIFrame* parent = frame->GetParent();
@@ -2375,7 +2375,7 @@ nsHTMLReflowState::InitConstraints(nsPresContext*     aPresContext,
           // auto height, pass that information along to ComputeSize().
           if (mFlags.mIsFlexContainerMeasuringHeight) {
             computeSizeFlags =
-              ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoHeight);
+              ComputeSizeFlags(computeSizeFlags | ComputeSizeFlags::eUseAutoBSize);
           }
         } else {
           MOZ_ASSERT(!mFlags.mIsFlexContainerMeasuringHeight,
