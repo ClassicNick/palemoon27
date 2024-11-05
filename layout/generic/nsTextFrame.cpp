@@ -351,7 +351,7 @@ public:
         return eIndexConvText;
       case SelectionType::SELECTION_IME_SELECTEDCONVERTEDTEXT:
         return eIndexSelConvText;
-      case SelectionType::SELECTION_SPELLCHECK:
+      case SelectionType::eSpellCheck:
         return eIndexSpellChecker;
       default:
         NS_WARNING("non-IME selection type");
@@ -5471,7 +5471,7 @@ nsTextFrame::ComputeSelectionUnderlineHeight(
     case SelectionType::SELECTION_IME_CONVERTEDTEXT:
     case SelectionType::SELECTION_IME_SELECTEDCONVERTEDTEXT:
       return aFontMetrics.underlineSize;
-    case SelectionType::SELECTION_SPELLCHECK: {
+    case SelectionType::eSpellCheck: {
       // The thickness of the spellchecker underline shouldn't honor the font
       // metrics.  It should be constant pixels value which is decided from the
       // default font size.  Note that if the actual font size is smaller than
@@ -5636,7 +5636,7 @@ nsTextFrame::DrawSelectionDecorations(gfxContext* aContext,
       }
       break;
     }
-    case SelectionType::SELECTION_SPELLCHECK:
+    case SelectionType::eSpellCheck:
       if (!weDefineSelectionUnderline)
         return;
       break;
@@ -7120,7 +7120,7 @@ nsTextFrame::CombineSelectionUnderlineRect(nsPresContext* aPresContext,
     int32_t index =
       nsTextPaintStyle::GetUnderlineStyleIndexForSelectionType(
         sd->mSelectionType);
-    if (sd->mSelectionType == SelectionType::SELECTION_SPELLCHECK) {
+    if (sd->mSelectionType == SelectionType::eSpellCheck) {
       if (!nsTextPaintStyle::GetSelectionUnderline(aPresContext, index, nullptr,
                                                    &relativeSize,
                                                    &params.style)) {
