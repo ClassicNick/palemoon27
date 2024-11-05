@@ -7951,7 +7951,7 @@ nsTextFrame::AddInlineMinISizeForFlow(nsRenderingContext *aRenderingContext,
 
   // text-combine-upright frame is constantly 1em on inline-axis.
   if (StyleContext()->IsTextCombined()) {
-    if (textRun->CanBreakLineBefore(start)) {
+    if (start < flowEndInTextRun && textRun->CanBreakLineBefore(start)) {
       aData->OptionallyBreak();
     }
     aData->mCurrentLine += provider.GetFontMetrics()->EmHeight();
