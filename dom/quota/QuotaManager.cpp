@@ -5284,8 +5284,8 @@ StorageDirectoryHelper::RunOnMainThread()
 
         nsCOMPtr<nsIPrincipal> principal;
         if (originProps.mAppId == kUnknownAppId) {
-          rv = secMan->GetSimpleCodebasePrincipal(uri,
-                                                  getter_AddRefs(principal));
+          rv = secMan->GetCodebasePrincipal(uri,
+                                            getter_AddRefs(principal));
         } else {
           OriginAttributes attrs(originProps.mAppId, originProps.mInMozBrowser);
           principal = BasePrincipal::CreateCodebasePrincipal(uri, attrs);

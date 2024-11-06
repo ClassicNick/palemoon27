@@ -84,7 +84,7 @@ DocumentRendererChild::RenderDocument(nsIDOMWindow *window,
         gfxWarning() << "DocumentRendererChild::RenderDocument failed to Factory::CreateDrawTargetForData";
         return false;
     }
-    RefPtr<gfxContext> ctx = gfxContext::ForDrawTarget(dt);
+    RefPtr<gfxContext> ctx = gfxContext::CreateOrNull(dt);
     MOZ_ASSERT(ctx); // already checked the draw target above
     ctx->SetMatrix(mozilla::gfx::ThebesMatrix(transform));
 

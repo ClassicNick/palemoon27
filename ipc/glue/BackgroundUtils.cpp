@@ -78,7 +78,7 @@ PrincipalInfoToPrincipal(const PrincipalInfo& aPrincipalInfo,
         return nullptr;
       }
 
-      PrincipalOriginAttributes attrs;
+      OriginAttributes attrs;
       if (info.attrs().mAppId != nsIScriptSecurityManager::UNKNOWN_APP_ID) {
         attrs = info.attrs();
       }

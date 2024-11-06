@@ -339,7 +339,7 @@ DOMParser::Init(nsIPrincipal* principal, nsIURI* documentURI,
   mPrincipal = principal;
   nsresult rv;
   if (!mPrincipal) {
-    PrincipalOriginAttributes attrs;
+    OriginAttributes attrs;
     mPrincipal = BasePrincipal::CreateCodebasePrincipal(mDocumentURI, attrs);
     NS_ENSURE_TRUE(mPrincipal, NS_ERROR_FAILURE);
     mOriginalPrincipal = mPrincipal;
