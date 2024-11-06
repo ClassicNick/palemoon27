@@ -257,8 +257,7 @@ BackgroundChildImpl::DeallocPUDPSocketChild(PUDPSocketChild* child)
 dom::PBroadcastChannelChild*
 BackgroundChildImpl::AllocPBroadcastChannelChild(const PrincipalInfo& aPrincipalInfo,
                                                  const nsCString& aOrigin,
-                                                 const nsString& aChannel,
-                                                 const bool& aPrivateBrowsing)
+                                                 const nsString& aChannel)
 {
   RefPtr<dom::BroadcastChannelChild> agent =
     new dom::BroadcastChannelChild(aOrigin);
