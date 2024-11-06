@@ -6487,9 +6487,11 @@ nsCharClipDisplayItem::ComputeInvalidationRegion(nsDisplayListBuilder* aBuilder,
 }
 
 nsDisplaySVGEffects::nsDisplaySVGEffects(nsDisplayListBuilder* aBuilder,
-                                         nsIFrame* aFrame, nsDisplayList* aList)
-    : nsDisplayWrapList(aBuilder, aFrame, aList),
-      mEffectsBounds(aFrame->GetVisualOverflowRectRelativeToSelf())
+                                         nsIFrame* aFrame, nsDisplayList* aList,
+                                         bool aOpacityItemCreated)
+  : nsDisplayWrapList(aBuilder, aFrame, aList)
+  , mEffectsBounds(aFrame->GetVisualOverflowRectRelativeToSelf())
+  , mOpacityItemCreated(aOpacityItemCreated)
 {
   MOZ_COUNT_CTOR(nsDisplaySVGEffects);
 }
@@ -6553,7 +6555,7 @@ nsDisplaySVGEffects::PaintAsLayer(nsDisplayListBuilder* aBuilder,
   nsSVGIntegrationUtils::PaintFramesParams params(*aCtx->ThebesContext(),
                                                   mFrame,  mVisibleRect,
                                                   borderArea, aBuilder,
-                                                  aManager);
+                                                  aManager, mOpacityItemCreated);
 
   nsSVGIntegrationUtils::PaintFramesWithEffects(params);
 }
