@@ -2434,8 +2434,8 @@ nsIFrame::BuildDisplayListForStackingContext(nsDisplayListBuilder* aBuilder,
     DisplayListClipState::AutoSaveRestore blendContainerClipState(aBuilder);
     blendContainerClipState.Clear();
     resultList.AppendNewToTop(
-      new (aBuilder) nsDisplayBlendContainer(aBuilder, this, &resultList,
-                                             containerItemScrollClip));
+      nsDisplayBlendContainer::CreateForMixBlendMode(aBuilder, this, &resultList,
+                                                     containerItemScrollClip));
   }
 
   if (!isTransformed && !useFixedPosition && !useStickyPosition) {
