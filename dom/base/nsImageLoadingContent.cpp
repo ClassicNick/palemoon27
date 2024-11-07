@@ -299,7 +299,7 @@ nsImageLoadingContent::OnUnlockedDraw()
     return;
   }
 
-  presShell->MarkFrameVisibleInDisplayPort(frame);
+  presShell->MarkFrameVisible(frame, VisibilityCounter::IN_DISPLAYPORT);
 }
 
 nsresult
