@@ -3425,6 +3425,7 @@ ScrollFrameHelper::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
         MaxZIndexInListOfItemsContainedInFrame(positionedDescendants, mOuter);
       if (zindex >= 0) {
         destinationList = positionedDescendants;
+        inactiveRegionItem->SetOverrideZIndex(zindex);
       } else {
         destinationList = scrolledContent.Outlines();
       }
