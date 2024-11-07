@@ -128,7 +128,6 @@ config = {
             "options": [
                 "--app=%(app)s",
                 "--ignore-window-size",
-                "--bootstrap",
                 "--remote-webserver=%(remote_webserver)s",
                 "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s",
@@ -149,7 +148,6 @@ config = {
             "options": [
                 "--app=%(app)s",
                 "--ignore-window-size",
-                "--bootstrap",
                 "--remote-webserver=%(remote_webserver)s",
                 "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s",
@@ -170,7 +168,6 @@ config = {
             "options": [
                 "--app=%(app)s",
                 "--ignore-window-size",
-                "--bootstrap",
                 "--remote-webserver=%(remote_webserver)s",
                 "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s",
