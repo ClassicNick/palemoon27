@@ -515,6 +515,19 @@ nsDOMWindowUtils::SetResolutionAndScaleTo(float aResolution)
 }
 
 NS_IMETHODIMP
+nsDOMWindowUtils::SetRestoreResolution(float aResolution)
+{
+  nsIPresShell* presShell = GetPresShell();
+  if (!presShell) {
+    return NS_ERROR_FAILURE;
+  }
+
+  presShell->SetRestoreResolution(aResolution);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMWindowUtils::GetResolution(float* aResolution)
 {
   MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());

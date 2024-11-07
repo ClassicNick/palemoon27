@@ -5477,6 +5477,13 @@ float PresShell::GetCumulativeNonRootScaleResolution()
   return resolution;
 }
 
+void PresShell::SetRestoreResolution(float aResolution)
+{
+  if (mMobileViewportManager) {
+    mMobileViewportManager->SetRestoreResolution(aResolution);
+  }
+}
+
 void PresShell::SetRenderingState(const RenderingState& aState)
 {
   if (mRenderFlags != aState.mRenderFlags) {
