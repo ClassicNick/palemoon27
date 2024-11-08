@@ -5113,8 +5113,8 @@ CanvasRenderingContext2D::AsyncDrawXULElement(nsXULElement& aElem,
 
   // protect against too-large surfaces that will cause allocation
   // or overflow issues
-  if (!gfxASurface::CheckSurfaceSize(gfx::IntSize(aW, aH), 0xffff)) {
-    error.Throw(NS_ERROR_FAILURE);
+  if (!Factory::CheckSurfaceSize(IntSize(aW, aH), 0xffff)) {
+    aError.Throw(NS_ERROR_FAILURE);
     return;
   }
 
