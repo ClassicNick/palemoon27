@@ -34,7 +34,7 @@ public:
 
   NS_DECL_ISUPPORTS
 
-  NS_IMETHOD GetSurfaceForPrinter(gfxASurface **surface) override;
+  virtual already_AddRefed<PrintTarget> MakePrintTarget() final;
 
   NS_IMETHOD Init(nsIWidget *aWidget, nsIPrintSettings* aPS,
                   bool aIsPrintPreview) override;

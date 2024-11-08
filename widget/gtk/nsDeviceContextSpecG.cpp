@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/gfx/PrintTargetThebes.h"
 #include "mozilla/Logging.h"
 
 #include "plstr.h"
@@ -32,6 +33,9 @@
 #include <sys/stat.h>
 
 using namespace mozilla;
+
+using mozilla::gfx::PrintTarget;
+using mozilla::gfx::PrintTargetThebes;
 
 static PRLogModuleInfo *
 GetDeviceContextSpecGTKLog()
@@ -104,10 +108,8 @@ NS_IMPL_ISUPPORTS(nsDeviceContextSpecGTK,
 
 #include "gfxPDFSurface.h"
 #include "gfxPSSurface.h"
-NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurface)
+already_AddRefed<PrintTarget> nsDeviceContextSpecGTK::MakePrintTarget()
 {
-  *aSurface = nullptr;
-
   double width, height;
   mPrintSettings->GetEffectivePageSize(&width, &height);
 
@@ -123,14 +125,14 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
   gchar *buf;
   gint fd = g_file_open_tmp("XXXXXX.tmp", &buf, nullptr);
   if (-1 == fd)
-    return NS_ERROR_GFX_PRINTER_COULD_NOT_OPEN_FILE;
+    return nullptr;
   close(fd);
 
   rv = NS_NewNativeLocalFile(nsDependentCString(buf), false,
                              getter_AddRefs(mSpoolFile));
   if (NS_FAILED(rv)) {
     unlink(buf);
-    return NS_ERROR_GFX_PRINTER_COULD_NOT_OPEN_FILE;
+    return nullptr;
   }
 
   mSpoolName = buf;
@@ -141,7 +143,7 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
   nsCOMPtr<nsIFileOutputStream> stream = do_CreateInstance("@mozilla.org/network/file-output-stream;1");
   rv = stream->Init(mSpoolFile, -1, -1, 0);
   if (NS_FAILED(rv))
-    return rv;
+    return nullptr;
 
   int16_t format;
   mPrintSettings->GetOutputFormat(&format);
@@ -155,6 +157,7 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
       // There is nothing to detect on Print Preview, use PS.
       format = nsIPrintSettings::kOutputFormatPS;
     } else {
+<<<<<<< HEAD
       const gchar* fmtGTK = gtk_print_settings_get(mGtkPrintSettings, GTK_PRINT_SETTINGS_OUTPUT_FILE_FORMAT);
       if (!fmtGTK && GTK_IS_PRINTER(mGtkPrinter)) {
         // Likely not print-to-file, check printer's capabilities
@@ -177,6 +180,9 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
       } else {
         format = nsIPrintSettings::kOutputFormatPS;
       }
+		else {
+      return nullptr;
+		}
     }
   }
 
@@ -192,12 +198,11 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
     }
   }
 
-  if (!surface)
-    return NS_ERROR_OUT_OF_MEMORY;
+  if (!surface) {
+    return nullptr;
+  }
 
-  surface.swap(*aSurface);
-
-  return NS_OK;
+  return PrintTargetThebes::CreateOrNull(surface);
 }
 
 /** -------------------------------------------------------
