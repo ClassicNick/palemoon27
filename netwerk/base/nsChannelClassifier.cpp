@@ -40,7 +40,7 @@ using mozilla::ArrayLength;
 using mozilla::Preferences;
 
 //
-// NSPR_LOG_MODULES=nsChannelClassifier:5
+// MOZ_LOG=nsChannelClassifier:5
 //
 static mozilla::LazyLogModule gChannelClassifierLog("nsChannelClassifier");
 
