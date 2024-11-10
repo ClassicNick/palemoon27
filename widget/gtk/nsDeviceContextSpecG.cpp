@@ -157,7 +157,6 @@ already_AddRefed<PrintTarget> nsDeviceContextSpecGTK::MakePrintTarget()
       // There is nothing to detect on Print Preview, use PS.
       format = nsIPrintSettings::kOutputFormatPS;
     } else {
-<<<<<<< HEAD
       const gchar* fmtGTK = gtk_print_settings_get(mGtkPrintSettings, GTK_PRINT_SETTINGS_OUTPUT_FILE_FORMAT);
       if (!fmtGTK && GTK_IS_PRINTER(mGtkPrinter)) {
         // Likely not print-to-file, check printer's capabilities
