@@ -154,9 +154,8 @@ nsHTTPCompressConv::BrotliHandler(nsIInputStream *stream, void *closure, const c
   nsHTTPCompressConv *self = static_cast<nsHTTPCompressConv *>(closure);
   *countRead = 0;
 
-  const uint32_t kOutSize = 128 * 1024; // just a chunk size, we call in a loop
-  unsigned char outBuffer[kOutSize];
-  unsigned char *outPtr;
+  const size_t kOutSize = 128 * 1024; // just a chunk size, we call in a loop
+  uint8_t *outPtr;
   size_t outSize;
   size_t avail = aAvail;
   BrotliDecoderResult res;
@@ -166,6 +165,7 @@ nsHTTPCompressConv::BrotliHandler(nsIInputStream *stream, void *closure, const c
     return NS_OK;
   }
 
+  auto outBuffer = MakeUniqueFallible<uint8_t[]>(kOutSize);
   if (outBuffer == nullptr) {
     self->mBrotli->mStatus = NS_ERROR_OUT_OF_MEMORY;
     return self->mBrotli->mStatus;
@@ -173,7 +173,7 @@ nsHTTPCompressConv::BrotliHandler(nsIInputStream *stream, void *closure, const c
 
   do {
     outSize = kOutSize;
-    outPtr = outBuffer;
+    outPtr = outBuffer.get();
 
     // brotli api is documented in brotli/dec/decode.h and brotli/dec/decode.c
     size_t totalOut = self->mBrotli->mTotalOut;
@@ -202,7 +202,7 @@ nsHTTPCompressConv::BrotliHandler(nsIInputStream *stream, void *closure, const c
       nsresult rv = self->do_OnDataAvailable(self->mBrotli->mRequest,
                                              self->mBrotli->mContext,
                                              self->mBrotli->mSourceOffset,
-                                             reinterpret_cast<const char *>(outBuffer),
+                                             reinterpret_cast<const char *>(outBuffer.get()),
                                              outSize);
       if (NS_FAILED(rv)) {
         self->mBrotli->mStatus = rv;
