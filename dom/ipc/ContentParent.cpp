@@ -1385,8 +1385,15 @@ ContentParent::GetAll(nsTArray<ContentParent*>& aArray)
 {
   aArray.Clear();
 
-  for (auto* cp : AllProcesses(eLive)) {
-    aArray.AppendElement(cp);
+  if (!sContentParents) {
+    return;
+  }
+
+  for (ContentParent* cp = sContentParents->getFirst(); cp;
+     cp = cp->LinkedListElement<ContentParent>::getNext()) {
+    if (cp->mIsAlive) {
+      aArray.AppendElement(cp);
+    }
   }
 }
 
@@ -1395,7 +1402,12 @@ ContentParent::GetAllEvenIfDead(nsTArray<ContentParent*>& aArray)
 {
   aArray.Clear();
 
-  for (auto* cp : AllProcesses(eAll)) {
+  if (!sContentParents) {
+    return;
+  }
+
+  for (ContentParent* cp = sContentParents->getFirst(); cp;
+     cp = cp->LinkedListElement<ContentParent>::getNext()) {
     aArray.AppendElement(cp);
   }
 }
@@ -5211,14 +5223,17 @@ ContentParent::IgnoreIPCPrincipal()
 void
 ContentParent::NotifyUpdatedDictionaries()
 {
+  AutoTArray<ContentParent*, 8> processes;
+  GetAll(processes);
+
   nsCOMPtr<nsISpellChecker> spellChecker(do_GetService(NS_SPELLCHECKER_CONTRACTID));
   MOZ_ASSERT(spellChecker, "No spell checker?");
 
   InfallibleTArray<nsString> dictionaries;
   spellChecker->GetDictionaryList(&dictionaries);
 
-  for (auto* cp : AllProcesses(eLive)) {
-    Unused << cp->SendUpdateDictionaryList(dictionaries);
+  for (size_t i = 0; i < processes.Length(); ++i) {
+    Unused << processes[i]->SendUpdateDictionaryList(dictionaries);
   }
 }
 
