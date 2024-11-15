@@ -2099,6 +2099,10 @@ SpecialPowersAPI.prototype = {
                                 {nativeAnonymousChildList, subtree});
   },
 
+  clearAppPrivateData: function(appId, browserOnly) {
+    return this._sendAsyncMessage('SPClearAppPrivateData',
+                                  { appId: appId, browserOnly: browserOnly });
+  },
 };
 
 this.SpecialPowersAPI = SpecialPowersAPI;

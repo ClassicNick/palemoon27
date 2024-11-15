@@ -41,7 +41,12 @@ function SpecialPowers(window) {
                             "SpecialPowers.CreateFiles",
                             "SpecialPowers.RemoveFiles",
                             "SPPingService",
-                            "SPQuotaManager"];
+                            "SPQuotaManager",
+                            "SPLoadExtension",
+                            "SPStartupExtension",
+                            "SPUnloadExtension",
+                            "SPExtensionMessage",
+                            "SPClearAppPrivateData"];
   addMessageListener("SPPingService", this._messageListener);
   addMessageListener("SpecialPowers.FilesCreated", this._messageListener);
   addMessageListener("SpecialPowers.FilesError", this._messageListener);
