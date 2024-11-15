@@ -1990,10 +1990,6 @@ SpecialPowersAPI.prototype = {
     this._sendAsyncMessage(messageTopic, msg);
   },
 
-  createDOMFile: function(path, options) {
-    return new File(path, options);
-  },
-
   removeAllServiceWorkerData: function() {
     this.notifyObserversInParentProcess(null, "browser:purge-session-history", "");
   },
