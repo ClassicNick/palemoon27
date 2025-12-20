@@ -34,6 +34,7 @@
 # include "jit/PerfSpewer.h"
 #endif
 #include "jit/BaselineJIT.h"
+#include "jit/ExecutableAllocator.h"
 #include "jit/JitCommon.h"
 #include "js/MemoryMetrics.h"
 #include "vm/StringBuffer.h"
@@ -50,12 +51,47 @@
 using namespace js;
 using namespace js::jit;
 using namespace js::wasm;
+using mozilla::Atomic;
 using mozilla::BinarySearch;
 using mozilla::MakeEnumeratedRange;
 using mozilla::PodCopy;
 using mozilla::PodZero;
 using mozilla::Swap;
 using JS::GenericNaN;
+
+// Limit the number of concurrent wasm code allocations per process. Note that
+// on Linux, the real maximum is ~32k, as each module requires 2 maps (RW/RX),
+// and the kernel's default max_map_count is ~65k.
+static Atomic<uint32_t> wasmCodeAllocations(0);
+static const uint32_t MaxWasmCodeAllocations = 16384;
+
+UniqueCodePtr
+wasm::AllocateCode(ExclusiveContext* cx, size_t bytes)
+{
+    // Allocate RW memory. DynamicallyLinkModule will reprotect the code as RX.
+    unsigned permissions =
+        ExecutableAllocator::initialProtectionFlags(ExecutableAllocator::Writable);
+
+    void* p = nullptr;
+    if (wasmCodeAllocations++ < MaxWasmCodeAllocations)
+        p = AllocateExecutableMemory(nullptr, bytes, permissions, "asm-js-code", gc::SystemPageSize());
+    if (!p) {
+        wasmCodeAllocations--;
+        ReportOutOfMemory(cx);
+    }
+
+    return UniqueCodePtr((uint8_t*)p, CodeDeleter(bytes));
+}
+
+void
+CodeDeleter::operator()(uint8_t* p)
+{
+    MOZ_ASSERT(wasmCodeAllocations > 0);
+    wasmCodeAllocations--;
+
+    MOZ_ASSERT(bytes_ != 0);
+    DeallocateExecutableMemory(p, bytes_, gc::SystemPageSize());
+}
 
 #if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
 // On MIPS, CodeLabels are instruction immediates so InternalLinks only
@@ -113,6 +149,16 @@ StaticLinkData::SymbolicLinkArray::deserialize(ExclusiveContext* cx, const uint8
     return cursor;
 }
 
+bool
+StaticLinkData::SymbolicLinkArray::clone(JSContext* cx, SymbolicLinkArray* out) const
+{
+    for (auto imm : MakeEnumeratedRange(SymbolicAddress::Limit)) {
+        if (!ClonePodVector(cx, (*this)[imm], &(*out)[imm]))
+            return false;
+    }
+    return true;
+}
+
 size_t
 StaticLinkData::SymbolicLinkArray::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
 {
@@ -143,6 +189,13 @@ StaticLinkData::FuncPtrTable::deserialize(ExclusiveContext* cx, const uint8_t* c
     (cursor = ReadBytes(cursor, &globalDataOffset, sizeof(globalDataOffset))) &&
     (cursor = DeserializePodVector(cx, cursor, &elemOffsets));
     return cursor;
+}
+
+bool
+StaticLinkData::FuncPtrTable::clone(JSContext* cx, FuncPtrTable* out) const
+{
+    out->globalDataOffset = globalDataOffset;
+    return ClonePodVector(cx, elemOffsets, &out->elemOffsets);
 }
 
 size_t
@@ -180,12 +233,242 @@ StaticLinkData::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
     return cursor;
 }
 
+bool
+StaticLinkData::clone(JSContext* cx, StaticLinkData* out) const
+{
+    out->pod = pod;
+    return ClonePodVector(cx, internalLinks, &out->internalLinks) &&
+           symbolicLinks.clone(cx, &out->symbolicLinks) &&
+           CloneVector(cx, funcPtrTables, &out->funcPtrTables);
+}
+
 size_t
 StaticLinkData::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
 {
     return internalLinks.sizeOfExcludingThis(mallocSizeOf) +
            symbolicLinks.sizeOfExcludingThis(mallocSizeOf) +
            SizeOfVectorExcludingThis(funcPtrTables, mallocSizeOf);
+}
+
+static size_t
+SerializedSigSize(const Sig& sig)
+{
+    return sizeof(ExprType) +
+           SerializedPodVectorSize(sig.args());
+}
+
+static uint8_t*
+SerializeSig(uint8_t* cursor, const Sig& sig)
+{
+    cursor = WriteScalar<ExprType>(cursor, sig.ret());
+    cursor = SerializePodVector(cursor, sig.args());
+    return cursor;
+}
+
+static const uint8_t*
+DeserializeSig(ExclusiveContext* cx, const uint8_t* cursor, Sig* sig)
+{
+    ExprType ret;
+    cursor = ReadScalar<ExprType>(cursor, &ret);
+
+    ValTypeVector args;
+    cursor = DeserializePodVector(cx, cursor, &args);
+    if (!cursor)
+        return nullptr;
+
+    *sig = Sig(Move(args), ret);
+    return cursor;
+}
+
+static size_t
+SizeOfSigExcludingThis(const Sig& sig, MallocSizeOf mallocSizeOf)
+{
+    return sig.args().sizeOfExcludingThis(mallocSizeOf);
+}
+
+size_t
+Export::serializedSize() const
+{
+    return SerializedSigSize(sig_) +
+           sizeof(pod);
+}
+
+uint8_t*
+Export::serialize(uint8_t* cursor) const
+{
+    cursor = SerializeSig(cursor, sig_);
+    cursor = WriteBytes(cursor, &pod, sizeof(pod));
+    return cursor;
+}
+
+const uint8_t*
+Export::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
+{
+    (cursor = DeserializeSig(cx, cursor, &sig_)) &&
+    (cursor = ReadBytes(cursor, &pod, sizeof(pod)));
+    return cursor;
+}
+
+bool
+Export::clone(JSContext* cx, Export* out) const
+{
+    out->pod = pod;
+    return out->sig_.clone(sig_);
+}
+
+size_t
+Export::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
+{
+    return SizeOfSigExcludingThis(sig_, mallocSizeOf);
+}
+
+size_t
+Import::serializedSize() const
+{
+    return SerializedSigSize(sig_) +
+           sizeof(pod);
+}
+
+uint8_t*
+Import::serialize(uint8_t* cursor) const
+{
+    cursor = SerializeSig(cursor, sig_);
+    cursor = WriteBytes(cursor, &pod, sizeof(pod));
+    return cursor;
+}
+
+const uint8_t*
+Import::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
+{
+    (cursor = DeserializeSig(cx, cursor, &sig_)) &&
+    (cursor = ReadBytes(cursor, &pod, sizeof(pod)));
+    return cursor;
+}
+
+bool
+Import::clone(JSContext* cx, Import* out) const
+{
+    out->pod = pod;
+    return out->sig_.clone(sig_);
+}
+
+size_t
+Import::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
+{
+    return SizeOfSigExcludingThis(sig_, mallocSizeOf);
+}
+
+CodeRange::CodeRange(Kind kind, Offsets offsets)
+  : begin_(offsets.begin),
+    profilingReturn_(0),
+    end_(offsets.end),
+    funcIndex_(0),
+    funcLineOrBytecode_(0),
+    funcBeginToTableEntry_(0),
+    funcBeginToTableProfilingJump_(0),
+    funcBeginToNonProfilingEntry_(0),
+    funcProfilingJumpToProfilingReturn_(0),
+    funcProfilingEpilogueToProfilingReturn_(0),
+    kind_(kind)
+{
+    MOZ_ASSERT(begin_ <= end_);
+    MOZ_ASSERT(kind_ == Entry || kind_ == Inline || kind_ == CallThunk);
+}
+
+CodeRange::CodeRange(Kind kind, ProfilingOffsets offsets)
+  : begin_(offsets.begin),
+    profilingReturn_(offsets.profilingReturn),
+    end_(offsets.end),
+    funcIndex_(0),
+    funcLineOrBytecode_(0),
+    funcBeginToTableEntry_(0),
+    funcBeginToTableProfilingJump_(0),
+    funcBeginToNonProfilingEntry_(0),
+    funcProfilingJumpToProfilingReturn_(0),
+    funcProfilingEpilogueToProfilingReturn_(0),
+    kind_(kind)
+{
+    MOZ_ASSERT(begin_ < profilingReturn_);
+    MOZ_ASSERT(profilingReturn_ < end_);
+    MOZ_ASSERT(kind_ == ImportJitExit || kind_ == ImportInterpExit);
+}
+
+CodeRange::CodeRange(uint32_t funcIndex, uint32_t funcLineOrBytecode, FuncOffsets offsets)
+  : begin_(offsets.begin),
+    profilingReturn_(offsets.profilingReturn),
+    end_(offsets.end),
+    funcIndex_(funcIndex),
+    funcLineOrBytecode_(funcLineOrBytecode),
+    funcBeginToTableEntry_(offsets.tableEntry - begin_),
+    funcBeginToTableProfilingJump_(offsets.tableProfilingJump - begin_),
+    funcBeginToNonProfilingEntry_(offsets.nonProfilingEntry - begin_),
+    funcProfilingJumpToProfilingReturn_(profilingReturn_ - offsets.profilingJump),
+    funcProfilingEpilogueToProfilingReturn_(profilingReturn_ - offsets.profilingEpilogue),
+    kind_(Function)
+{
+    MOZ_ASSERT(begin_ < profilingReturn_);
+    MOZ_ASSERT(profilingReturn_ < end_);
+    MOZ_ASSERT(funcBeginToTableEntry_ == offsets.tableEntry - begin_);
+    MOZ_ASSERT(funcBeginToTableProfilingJump_ == offsets.tableProfilingJump - begin_);
+    MOZ_ASSERT(funcBeginToNonProfilingEntry_ == offsets.nonProfilingEntry - begin_);
+    MOZ_ASSERT(funcProfilingJumpToProfilingReturn_ == profilingReturn_ - offsets.profilingJump);
+    MOZ_ASSERT(funcProfilingEpilogueToProfilingReturn_ == profilingReturn_ - offsets.profilingEpilogue);
+}
+
+static size_t
+NullableStringLength(const char* chars)
+{
+    return chars ? strlen(chars) : 0;
+}
+
+size_t
+CacheableChars::serializedSize() const
+{
+    return sizeof(uint32_t) + NullableStringLength(get());
+}
+
+uint8_t*
+CacheableChars::serialize(uint8_t* cursor) const
+{
+    uint32_t length = NullableStringLength(get());
+    cursor = WriteBytes(cursor, &length, sizeof(uint32_t));
+    cursor = WriteBytes(cursor, get(), length);
+    return cursor;
+}
+
+const uint8_t*
+CacheableChars::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
+{
+    uint32_t length;
+    cursor = ReadBytes(cursor, &length, sizeof(uint32_t));
+
+    reset(cx->pod_calloc<char>(length + 1));
+    if (!get())
+        return nullptr;
+
+    cursor = ReadBytes(cursor, get(), length);
+    return cursor;
+}
+
+bool
+CacheableChars::clone(JSContext* cx, CacheableChars* out) const
+{
+    uint32_t length = NullableStringLength(get());
+
+    UniqueChars chars(cx->pod_calloc<char>(length + 1));
+    if (!chars)
+        return false;
+
+    PodCopy(chars.get(), get(), length);
+
+    *out = Move(chars);
+    return true;
+}
+
+size_t
+CacheableChars::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
+{
+    return mallocSizeOf(get());
 }
 
 size_t
@@ -214,12 +497,106 @@ ExportMap::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
     return cursor;
 }
 
+bool
+ExportMap::clone(JSContext* cx, ExportMap* map) const
+{
+    return CloneVector(cx, fieldNames, &map->fieldNames) &&
+           ClonePodVector(cx, fieldsToExports, &map->fieldsToExports) &&
+           ClonePodVector(cx, exportFuncIndices, &map->exportFuncIndices);
+}
+
 size_t
 ExportMap::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
 {
     return SizeOfVectorExcludingThis(fieldNames, mallocSizeOf) &&
            fieldsToExports.sizeOfExcludingThis(mallocSizeOf) &&
            exportFuncIndices.sizeOfExcludingThis(mallocSizeOf);
+}
+
+size_t
+ModuleData::serializedSize() const
+{
+    return sizeof(pod()) +
+           codeBytes +
+           SerializedVectorSize(imports) +
+           SerializedVectorSize(exports) +
+           SerializedPodVectorSize(heapAccesses) +
+           SerializedPodVectorSize(codeRanges) +
+           SerializedPodVectorSize(callSites) +
+           SerializedPodVectorSize(callThunks) +
+           SerializedVectorSize(prettyFuncNames) +
+           filename.serializedSize();
+}
+
+uint8_t*
+ModuleData::serialize(uint8_t* cursor) const
+{
+    cursor = WriteBytes(cursor, &pod(), sizeof(pod()));
+    cursor = WriteBytes(cursor, code.get(), codeBytes);
+    cursor = SerializeVector(cursor, imports);
+    cursor = SerializeVector(cursor, exports);
+    cursor = SerializePodVector(cursor, heapAccesses);
+    cursor = SerializePodVector(cursor, codeRanges);
+    cursor = SerializePodVector(cursor, callSites);
+    cursor = SerializePodVector(cursor, callThunks);
+    cursor = SerializeVector(cursor, prettyFuncNames);
+    cursor = filename.serialize(cursor);
+    return cursor;
+}
+
+/* static */ const uint8_t*
+ModuleData::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
+{
+    cursor = ReadBytes(cursor, &pod(), sizeof(pod()));
+
+    code = AllocateCode(cx, totalBytes());
+    if (!code)
+        return nullptr;
+    cursor = ReadBytes(cursor, code.get(), codeBytes);
+
+    (cursor = DeserializeVector(cx, cursor, &imports)) &&
+    (cursor = DeserializeVector(cx, cursor, &exports)) &&
+    (cursor = DeserializePodVector(cx, cursor, &heapAccesses)) &&
+    (cursor = DeserializePodVector(cx, cursor, &codeRanges)) &&
+    (cursor = DeserializePodVector(cx, cursor, &callSites)) &&
+    (cursor = DeserializePodVector(cx, cursor, &callThunks)) &&
+    (cursor = DeserializeVector(cx, cursor, &prettyFuncNames)) &&
+    (cursor = filename.deserialize(cx, cursor));
+    return cursor;
+}
+
+bool
+ModuleData::clone(JSContext* cx, ModuleData* out) const
+{
+    out->pod() = pod();
+
+    out->code = AllocateCode(cx, totalBytes());
+    if (!out->code)
+        return false;
+    memcpy(out->code.get(), code.get(), codeBytes);
+
+    return CloneVector(cx, imports, &out->imports) &&
+           CloneVector(cx, exports, &out->exports) &&
+           ClonePodVector(cx, heapAccesses, &out->heapAccesses) &&
+           ClonePodVector(cx, codeRanges, &out->codeRanges) &&
+           ClonePodVector(cx, callSites, &out->callSites) &&
+           ClonePodVector(cx, callThunks, &out->callThunks) &&
+           CloneVector(cx, prettyFuncNames, &out->prettyFuncNames) &&
+           filename.clone(cx, &out->filename);
+}
+
+size_t
+ModuleData::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
+{
+    // Module::addSizeOfMisc takes care of code and global memory.
+    return SizeOfVectorExcludingThis(imports, mallocSizeOf) +
+           SizeOfVectorExcludingThis(exports, mallocSizeOf) +
+           heapAccesses.sizeOfExcludingThis(mallocSizeOf) +
+           codeRanges.sizeOfExcludingThis(mallocSizeOf) +
+           callSites.sizeOfExcludingThis(mallocSizeOf) +
+           callThunks.sizeOfExcludingThis(mallocSizeOf) +
+           SizeOfVectorExcludingThis(prettyFuncNames, mallocSizeOf) +
+           filename.sizeOfExcludingThis(mallocSizeOf);
 }
 
 uint8_t*
@@ -257,7 +634,7 @@ Module::specializeToHeap(ArrayBufferObjectMaybeShared* heap)
     // i.e. ptr > heapLength - data-type-byte-size - offset. data-type-byte-size
     // and offset are already included in the addend so we
     // just have to add the heap length here.
-    for (const HeapAccess& access : metadata_->heapAccesses) {
+    for (const HeapAccess& access : module_->heapAccesses) {
         if (access.hasLengthCheck())
             X86Encoding::AddInt32(access.patchLengthAt(code()), heapLength);
         void* addr = access.patchHeapPtrImmAt(code());
@@ -273,14 +650,14 @@ Module::specializeToHeap(ArrayBufferObjectMaybeShared* heap)
     // checks at the right places. All accesses that have been recorded are the
     // only ones that need bound checks (see also
     // CodeGeneratorX64::visitAsmJS{Load,Store,CompareExchange,Exchange,AtomicBinop}Heap)
-    for (const HeapAccess& access : metadata_->heapAccesses) {
+    for (const HeapAccess& access : module_->heapAccesses) {
         // See comment above for x86 codegen.
         if (access.hasLengthCheck())
             X86Encoding::AddInt32(access.patchLengthAt(code()), heapLength);
     }
 #elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
       defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
-    for (const HeapAccess& access : metadata_->heapAccesses)
+    for (const HeapAccess& access : module_->heapAccesses)
         Assembler::UpdateBoundsCheck(heapLength, (Instruction*)(access.insnOffset() + code()));
 #endif
 
@@ -300,8 +677,8 @@ Module::despecializeFromHeap(ArrayBufferObjectMaybeShared* heap)
 #if defined(JS_CODEGEN_X86)
     uint32_t heapLength = heap->byteLength();
     uint8_t* ptrBase = heap->dataPointerEither().unwrap(/*safe - used for value*/);
-    for (unsigned i = 0; i < metadata_->heapAccesses.length(); i++) {
-        const HeapAccess& access = metadata_->heapAccesses[i];
+    for (unsigned i = 0; i < module_->heapAccesses.length(); i++) {
+        const HeapAccess& access = module_->heapAccesses[i];
         if (access.hasLengthCheck())
             X86Encoding::AddInt32(access.patchLengthAt(code()), -heapLength);
         void* addr = access.patchHeapPtrImmAt(code());
@@ -311,8 +688,8 @@ Module::despecializeFromHeap(ArrayBufferObjectMaybeShared* heap)
     }
 #elif defined(JS_CODEGEN_X64)
     uint32_t heapLength = heap->byteLength();
-    for (unsigned i = 0; i < metadata_->heapAccesses.length(); i++) {
-        const HeapAccess& access = metadata_->heapAccesses[i];
+    for (unsigned i = 0; i < module_->heapAccesses.length(); i++) {
+        const HeapAccess& access = module_->heapAccesses[i];
         if (access.hasLengthCheck())
             X86Encoding::AddInt32(access.patchLengthAt(code()), -heapLength);
     }
@@ -335,7 +712,7 @@ Module::sendCodeRangesToProfiler(JSContext* cx)
     if (!enabled)
         return true;
 
-    for (const CodeRange& codeRange : metadata_->codeRanges) {
+    for (const CodeRange& codeRange : module_->codeRanges) {
         if (!codeRange.isFunction())
             continue;
 
@@ -355,7 +732,7 @@ Module::sendCodeRangesToProfiler(JSContext* cx)
 
 #ifdef JS_ION_PERF
         if (PerfFuncEnabled()) {
-            const char* file = metadata_->filename.get();
+            const char* file = module_->filename.get();
             unsigned line = codeRange.funcLineOrBytecode();
             unsigned column = 0;
             writePerfSpewerAsmJSFunctionMap(start, size, file, line, column, name);
@@ -398,7 +775,7 @@ Module::setProfilingEnabled(JSContext* cx, bool enabled)
     // do it now since, once we start sampling, we'll be in a signal-handing
     // context where we cannot malloc.
     if (enabled) {
-        for (const CodeRange& codeRange : metadata_->codeRanges) {
+        for (const CodeRange& codeRange : module_->codeRanges) {
             if (!codeRange.isFunction())
                 continue;
 
@@ -409,7 +786,7 @@ Module::setProfilingEnabled(JSContext* cx, bool enabled)
 
             UniqueChars label(JS_smprintf("%s (%s:%u)",
                                           funcName,
-                                          metadata_->filename.get(),
+                                          module_->filename.get(),
                                           codeRange.funcLineOrBytecode()));
             if (!label) {
                 ReportOutOfMemory(cx);
@@ -428,17 +805,17 @@ Module::setProfilingEnabled(JSContext* cx, bool enabled)
 
     // Patch callsites and returns to execute profiling prologues/epilogues.
     {
-        AutoWritableJitCode awjc(cx->runtime(), code(), codeLength());
+        AutoWritableJitCode awjc(cx->runtime(), code(), codeBytes());
         AutoFlushICache afc("Module::setProfilingEnabled");
-        AutoFlushICache::setRange(uintptr_t(code()), codeLength());
+        AutoFlushICache::setRange(uintptr_t(code()), codeBytes());
 
-        for (const CallSite& callSite : metadata_->callSites)
+        for (const CallSite& callSite : module_->callSites)
             ToggleProfiling(*this, callSite, enabled);
 
-        for (const CallThunk& callThunk : metadata_->callThunks)
+        for (const CallThunk& callThunk : module_->callThunks)
             ToggleProfiling(*this, callThunk, enabled);
 
-        for (const CodeRange& codeRange : metadata_->codeRanges)
+        for (const CodeRange& codeRange : module_->codeRanges)
             ToggleProfiling(*this, codeRange, enabled);
     }
 
@@ -476,17 +853,14 @@ Module::clone(JSContext* cx, const StaticLinkData& link, Module* out) const
 {
     MOZ_ASSERT(dynamicallyLinked_);
 
-    // The out->metadata_ field was already cloned and initialized when 'out' was
+    // The out->module_ field was already cloned and initialized when 'out' was
     // constructed. This function should clone the rest.
-    MOZ_ASSERT(out->metadata_);
+    MOZ_ASSERT(out->module_);
 
-    // Copy the profiling state over too since the cloned machine code
-    // implicitly brings the profiling mode.
     out->profilingEnabled_ = profilingEnabled_;
-    for (const CacheableChars& label : funcLabels_) {
-        if (!out->funcLabels_.emplaceBack(DuplicateString(label.get())))
-            return false;
-    }
+
+    if (!CloneVector(cx, funcLabels_, &out->funcLabels_))
+        return false;
 
 #ifdef DEBUG
     // Put the symbolic links back to -1 so PatchDataWithValueCheck assertions
@@ -495,9 +869,9 @@ Module::clone(JSContext* cx, const StaticLinkData& link, Module* out) const
         void* callee = AddressOf(imm, cx);
         const Uint32Vector& offsets = link.symbolicLinks[imm];
         for (uint32_t offset : offsets) {
-            Assembler::PatchDataWithValueCheck(CodeLocationLabel(out->code() + offset),
-                                               PatchedImmPtr((void*)-1),
-                                               PatchedImmPtr(callee));
+            jit::Assembler::PatchDataWithValueCheck(jit::CodeLocationLabel(out->code() + offset),
+                                                    jit::PatchedImmPtr((void*)-1),
+                                                    jit::PatchedImmPtr(callee));
         }
     }
 #endif
@@ -510,9 +884,9 @@ Module::clone(JSContext* cx, const StaticLinkData& link, Module* out) const
     return true;
 }
 
-Module::Module(UniqueCodeSegment codeSegment, const Metadata& metadata)
-  : codeSegment_(Move(codeSegment)),
-    metadata_(&metadata),
+
+Module::Module(UniqueModuleData module)
+  : module_(Move(module)),
     staticallyLinked_(false),
     interrupt_(nullptr),
     outOfBounds_(nullptr),
@@ -524,7 +898,7 @@ Module::Module(UniqueCodeSegment codeSegment, const Metadata& metadata)
 
 #ifdef DEBUG
     uint32_t lastEnd = 0;
-    for (const CodeRange& cr : metadata_->codeRanges) {
+    for (const CodeRange& cr : module_->codeRanges) {
         MOZ_ASSERT(cr.begin() >= lastEnd);
         lastEnd = cr.end();
     }
@@ -561,11 +935,11 @@ Module::readBarrier()
 /* virtual */ void
 Module::addSizeOfMisc(MallocSizeOf mallocSizeOf, size_t* code, size_t* data)
 {
-    *code += codeSegment_->codeLength();
+    *code += codeBytes();
     *data += mallocSizeOf(this) +
-             codeSegment_->globalDataLength() +
-             mallocSizeOf(metadata_.get()) +
-             metadata_->sizeOfExcludingThis(mallocSizeOf) +
+             globalBytes() +
+             mallocSizeOf(module_.get()) +
+             module_->sizeOfExcludingThis(mallocSizeOf) +
              source_.sizeOfExcludingThis(mallocSizeOf) +
              funcPtrTables_.sizeOfExcludingThis(mallocSizeOf) +
              SizeOfVectorExcludingThis(funcLabels_, mallocSizeOf);
@@ -590,13 +964,13 @@ Module::displayURL() const
 bool
 Module::containsFunctionPC(void* pc) const
 {
-    return pc >= code() && pc < (code() + metadata_->functionLength);
+    return pc >= code() && pc < (code() + module_->functionBytes);
 }
 
 bool
 Module::containsCodePC(void* pc) const
 {
-    return pc >= code() && pc < (code() + codeLength());
+    return pc >= code() && pc < (code() + codeBytes());
 }
 
 struct CallSiteRetAddrOffset
@@ -613,13 +987,13 @@ Module::lookupCallSite(void* returnAddress) const
 {
     uint32_t target = ((uint8_t*)returnAddress) - code();
     size_t lowerBound = 0;
-    size_t upperBound = metadata_->callSites.length();
+    size_t upperBound = module_->callSites.length();
 
     size_t match;
-    if (!BinarySearch(CallSiteRetAddrOffset(metadata_->callSites), lowerBound, upperBound, target, &match))
+    if (!BinarySearch(CallSiteRetAddrOffset(module_->callSites), lowerBound, upperBound, target, &match))
         return nullptr;
 
-    return &metadata_->callSites[match];
+    return &module_->callSites[match];
 }
 
 const CodeRange*
@@ -627,13 +1001,13 @@ Module::lookupCodeRange(void* pc) const
 {
     CodeRange::PC target((uint8_t*)pc - code());
     size_t lowerBound = 0;
-    size_t upperBound = metadata_->codeRanges.length();
+    size_t upperBound = module_->codeRanges.length();
 
     size_t match;
-    if (!BinarySearch(metadata_->codeRanges, lowerBound, upperBound, target, &match))
+    if (!BinarySearch(module_->codeRanges, lowerBound, upperBound, target, &match))
         return nullptr;
 
-    return &metadata_->codeRanges[match];
+    return &module_->codeRanges[match];
 }
 
 struct HeapAccessOffset
@@ -652,13 +1026,13 @@ Module::lookupHeapAccess(void* pc) const
 
     uint32_t target = ((uint8_t*)pc) - code();
     size_t lowerBound = 0;
-    size_t upperBound = metadata_->heapAccesses.length();
+    size_t upperBound = module_->heapAccesses.length();
 
     size_t match;
-    if (!BinarySearch(HeapAccessOffset(metadata_->heapAccesses), lowerBound, upperBound, target, &match))
+    if (!BinarySearch(HeapAccessOffset(module_->heapAccesses), lowerBound, upperBound, target, &match))
         return nullptr;
 
-    return &metadata_->heapAccesses[match];
+    return &module_->heapAccesses[match];
 }
 
 bool
@@ -673,7 +1047,7 @@ Module::staticallyLink(ExclusiveContext* cx, const StaticLinkData& linkData)
     JitContext jcx(CompileRuntime::get(cx->compartment()->runtimeFromAnyThread()));
     MOZ_ASSERT(IsCompilingAsmJS());
     AutoFlushICache afc("Module::staticallyLink", /* inhibit = */ true);
-    AutoFlushICache::setRange(uintptr_t(code()), codeLength());
+    AutoFlushICache::setRange(uintptr_t(code()), codeBytes());
 
     interrupt_ = code() + linkData.pod.interruptOffset;
     outOfBounds_ = code() + linkData.pod.outOfBoundsOffset;
@@ -852,7 +1226,7 @@ Module::dynamicallyLink(JSContext* cx,
     JitContext jcx(CompileRuntime::get(cx->compartment()->runtimeFromAnyThread()));
     MOZ_ASSERT(IsCompilingAsmJS());
     AutoFlushICache afc("Module::dynamicallyLink");
-    AutoFlushICache::setRange(uintptr_t(code()), codeLength());
+    AutoFlushICache::setRange(uintptr_t(code()), codeBytes());
 
     // Initialize imports with actual imported values.
     MOZ_ASSERT(importArgs.length() == imports().length());
@@ -868,8 +1242,8 @@ Module::dynamicallyLink(JSContext* cx,
     if (usesHeap())
         specializeToHeap(heap);
 
-    // See CodeSegment::allocate comment above.
-    if (!ExecutableAllocator::makeExecutable(code(), codeLength())) {
+    // See AllocateCode comment above.
+    if (!ExecutableAllocator::makeExecutable(code(), codeBytes())) {
         ReportOutOfMemory(cx);
         return false;
     }
@@ -1327,9 +1701,9 @@ Module::callImport_f64(int32_t importIndex, int32_t argc, uint64_t* argv)
 const char*
 Module::maybePrettyFuncName(uint32_t funcIndex) const
 {
-    if (funcIndex >= metadata_->prettyFuncNames.length())
+    if (funcIndex >= module_->prettyFuncNames.length())
         return nullptr;
-    return metadata_->prettyFuncNames[funcIndex].get();
+    return module_->prettyFuncNames[funcIndex].get();
 }
 
 const char*
@@ -1459,13 +1833,16 @@ WasmModuleObject::create(ExclusiveContext* cx)
     return &obj->as<WasmModuleObject>();
 }
 
-void
-WasmModuleObject::init(Module& module)
+bool
+WasmModuleObject::init(Module* module)
 {
     MOZ_ASSERT(is<WasmModuleObject>());
     MOZ_ASSERT(!hasModule());
-    module.setOwner(this);
-    setReservedSlot(MODULE_SLOT, PrivateValue(&module));
+    if (!module)
+        return false;
+    module->setOwner(this);
+    setReservedSlot(MODULE_SLOT, PrivateValue(module));
+    return true;
 }
 
 Module&

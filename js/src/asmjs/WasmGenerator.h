@@ -119,9 +119,8 @@ class MOZ_STACK_CLASS ModuleGenerator
     jit::JitContext                 jcx_;
 
     // Data handed back to the caller in finish()
-    uint32_t                        globalDataLength_;
-    MutableMetadata                 metadata_;
-    MutableExportMap                exportMap_;
+    UniqueModuleData                module_;
+    UniqueExportMap                 exportMap_;
     SlowFunctionVector              slowFuncs_;
 
     // Data scoped to the ModuleGenerator's lifetime
@@ -153,7 +152,7 @@ class MOZ_STACK_CLASS ModuleGenerator
     MOZ_MUST_USE bool convertOutOfRangeBranchesToThunks();
     MOZ_MUST_USE bool finishTask(IonCompileTask* task);
     MOZ_MUST_USE bool finishCodegen(StaticLinkData* link);
-    MOZ_MUST_USE bool finishStaticLinkData(uint8_t* code, uint32_t codeLength, StaticLinkData* link);
+    MOZ_MUST_USE bool finishStaticLinkData(uint8_t* code, uint32_t codeBytes, StaticLinkData* link);
     MOZ_MUST_USE bool addImport(const Sig& sig, uint32_t globalDataOffset);
     MOZ_MUST_USE bool allocateGlobalBytes(uint32_t bytes, uint32_t align, uint32_t* globalDataOff);
 
@@ -163,8 +162,8 @@ class MOZ_STACK_CLASS ModuleGenerator
 
     MOZ_MUST_USE bool init(UniqueModuleGeneratorData shared, UniqueChars filename);
 
-    bool isAsmJS() const { return metadata_->kind == ModuleKind::AsmJS; }
-    CompileArgs args() const { return metadata_->compileArgs; }
+    bool isAsmJS() const { return module_->kind == ModuleKind::AsmJS; }
+    CompileArgs args() const { return module_->compileArgs; }
     jit::MacroAssembler& masm() { return masm_; }
 
     // Heap usage:
@@ -208,14 +207,13 @@ class MOZ_STACK_CLASS ModuleGenerator
     void initSigTableElems(uint32_t sigIndex, Uint32Vector&& elemFuncIndices);
     void bumpMinHeapLength(uint32_t newMinHeapLength);
 
-    // Return a Metadata object which may be used to construct a Module, the
+    // Return a ModuleData object which may be used to construct a Module, the
     // StaticLinkData required to call Module::staticallyLink, and the list of
     // functions that took a long time to compile.
     MOZ_MUST_USE bool finish(CacheableCharsVector&& prettyFuncNames,
-                             UniqueCodeSegment* codeSegment,
-                             SharedMetadata* metadata,
-                             SharedStaticLinkData* staticLinkData,
-                             SharedExportMap* exportMap,
+                             UniqueModuleData* module,
+                             UniqueStaticLinkData* staticLinkData,
+                             UniqueExportMap* exportMap,
                              SlowFunctionVector* slowFuncs);
 };
 

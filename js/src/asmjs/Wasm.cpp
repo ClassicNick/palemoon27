@@ -1102,7 +1102,7 @@ DecodeNameSection(JSContext* cx, Decoder& d, CacheableCharsVector* funcNames)
 
 static bool
 DecodeModule(JSContext* cx, UniqueChars file, const uint8_t* bytes, uint32_t length,
-             ImportNameVector* importNames, SharedExportMap* exportMap,
+             ImportNameVector* importNames, UniqueExportMap* exportMap,
              MutableHandle<ArrayBufferObject*> heap, MutableHandle<WasmModuleObject*> moduleObj)
 {
     Decoder d(bytes, bytes + length);
@@ -1155,24 +1155,20 @@ DecodeModule(JSContext* cx, UniqueChars file, const uint8_t* bytes, uint32_t len
             return Fail(cx, d, "failed to skip unknown section at end");
     }
 
-    UniqueCodeSegment code;
-    SharedMetadata metadata;
-    SharedStaticLinkData staticLinkData;
+    UniqueModuleData module;
+    UniqueStaticLinkData staticLink;
     SlowFunctionVector slowFuncs(cx);
-    if (!mg.finish(Move(funcNames), &code, &metadata, &staticLinkData, exportMap, &slowFuncs))
+    if (!mg.finish(Move(funcNames), &module, &staticLink, exportMap, &slowFuncs))
         return false;
 
     moduleObj.set(WasmModuleObject::create(cx));
     if (!moduleObj)
         return false;
 
-    auto module = cx->new_<Module>(Move(code), *metadata);
-    if (!module)
+    if (!moduleObj->init(cx->new_<Module>(Move(module))))
         return false;
 
-    moduleObj->init(*module);
-
-    return moduleObj->module().staticallyLink(cx, *staticLinkData);
+    return moduleObj->module().staticallyLink(cx, *staticLink);
 }
 
 /*****************************************************************************/
@@ -1299,7 +1295,7 @@ wasm::Eval(JSContext* cx, Handle<TypedArrayObject*> code, HandleObject importObj
         return false;
 
     ImportNameVector importNames;
-    SharedExportMap exportMap;
+    UniqueExportMap exportMap;
     Rooted<ArrayBufferObject*> heap(cx);
     Rooted<WasmModuleObject*> moduleObj(cx);
 

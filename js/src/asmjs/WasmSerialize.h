@@ -165,6 +165,20 @@ DeserializeVector(ExclusiveContext* cx, const uint8_t* cursor,
 }
 
 template <class T, size_t N>
+static inline MOZ_MUST_USE bool
+CloneVector(JSContext* cx, const mozilla::Vector<T, N, SystemAllocPolicy>& in,
+            mozilla::Vector<T, N, SystemAllocPolicy>* out)
+{
+    if (!out->resize(in.length()))
+        return false;
+    for (size_t i = 0; i < in.length(); i++) {
+        if (!in[i].clone(cx, &(*out)[i]))
+            return false;
+    }
+    return true;
+}
+
+template <class T, size_t N>
 static inline size_t
 SizeOfVectorExcludingThis(const mozilla::Vector<T, N, SystemAllocPolicy>& vec,
                           MallocSizeOf mallocSizeOf)
@@ -203,6 +217,17 @@ DeserializePodVector(ExclusiveContext* cx, const uint8_t* cursor,
         return nullptr;
     cursor = ReadBytes(cursor, vec->begin(), length * sizeof(T));
     return cursor;
+}
+
+template <class T, size_t N>
+static inline MOZ_MUST_USE bool
+ClonePodVector(JSContext* cx, const mozilla::Vector<T, N, SystemAllocPolicy>& in,
+               mozilla::Vector<T, N, SystemAllocPolicy>* out)
+{
+    if (!out->resize(in.length()))
+        return false;
+    mozilla::PodCopy(out->begin(), in.begin(), in.length());
+    return true;
 }
 
 static inline MOZ_MUST_USE bool

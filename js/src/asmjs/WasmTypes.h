@@ -23,8 +23,6 @@
 #include "mozilla/HashFunctions.h"
 #include "mozilla/Maybe.h"
 #include "mozilla/Move.h"
-#include "mozilla/RefCounted.h"
-#include "mozilla/RefPtr.h"
 
 #include "NamespaceImports.h"
 
@@ -46,7 +44,6 @@ using mozilla::EnumeratedArray;
 using mozilla::Maybe;
 using mozilla::Move;
 using mozilla::MallocSizeOf;
-using mozilla::RefCounted;
 
 typedef Vector<uint32_t, 0, SystemAllocPolicy> Uint32Vector;
 
@@ -60,16 +57,17 @@ template <> struct IsPod<js::wasm::Type> : TrueType {};                         
 } namespace js { namespace wasm {                                               \
 typedef Vector<Type, 0, SystemAllocPolicy> VectorName;
 
-// A wasm Module and everything it contains must support serialization and
-// deserialization. Some data can be simply copied as raw bytes and,
+// A wasm Module and everything it contains must support serialization,
+// deserialization and cloning. Some data can be simply copied as raw bytes and,
 // as a convention, is stored in an inline CacheablePod struct. Everything else
 // should implement the below methods which are called recusively by the
-// containing Module.
+// containing Module. See comments for these methods in wasm::Module.
 
 #define WASM_DECLARE_SERIALIZABLE(Type)                                         \
     size_t serializedSize() const;                                              \
     uint8_t* serialize(uint8_t* cursor) const;                                  \
     const uint8_t* deserialize(ExclusiveContext* cx, const uint8_t* cursor);    \
+    MOZ_MUST_USE bool clone(JSContext* cx, Type* out) const;                    \
     size_t sizeOfExcludingThis(mozilla::MallocSizeOf mallocSizeOf) const;
 
 // ValType/ExprType utilities
