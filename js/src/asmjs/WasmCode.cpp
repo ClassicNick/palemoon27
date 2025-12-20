@@ -283,42 +283,37 @@ CodeRange::CodeRange(uint32_t funcIndex, uint32_t funcLineOrBytecode, FuncOffset
 }
 
 static size_t
-StringLengthWithNullChar(const char* chars)
+NullableStringLength(const char* chars)
 {
-    return chars ? strlen(chars) + 1 : 0;
+    return chars ? strlen(chars) : 0;
 }
 
 size_t
 CacheableChars::serializedSize() const
 {
-    return sizeof(uint32_t) + StringLengthWithNullChar(get());
+    return sizeof(uint32_t) + NullableStringLength(get());
 }
 
 uint8_t*
 CacheableChars::serialize(uint8_t* cursor) const
 {
-    uint32_t lengthWithNullChar = StringLengthWithNullChar(get());
-    cursor = WriteScalar<uint32_t>(cursor, lengthWithNullChar);
-    cursor = WriteBytes(cursor, get(), lengthWithNullChar);
+    uint32_t length = NullableStringLength(get());
+    cursor = WriteBytes(cursor, &length, sizeof(uint32_t));
+    cursor = WriteBytes(cursor, get(), length);
     return cursor;
 }
 
 const uint8_t*
 CacheableChars::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
 {
-    uint32_t lengthWithNullChar;
-    cursor = ReadBytes(cursor, &lengthWithNullChar, sizeof(uint32_t));
+    uint32_t length;
+    cursor = ReadBytes(cursor, &length, sizeof(uint32_t));
 
-    if (lengthWithNullChar) {
-        reset(cx->pod_malloc<char>(lengthWithNullChar));
-        if (!get())
-            return nullptr;
+    reset(cx->pod_calloc<char>(length + 1));
+    if (!get())
+        return nullptr;
 
-        cursor = ReadBytes(cursor, get(), lengthWithNullChar);
-    } else {
-        MOZ_ASSERT(!get());
-    }
-
+    cursor = ReadBytes(cursor, get(), length);
     return cursor;
 }
 

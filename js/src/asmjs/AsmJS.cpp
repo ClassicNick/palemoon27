@@ -68,6 +68,15 @@ using JS::GenericNaN;
 /*****************************************************************************/
 // asm.js module object
 
+typedef PropertyName* PropertyNamePtr;
+
+static void
+TraceNameField(JSTracer* trc, const PropertyNamePtr* name, const char* label)
+{
+    if (*name)
+        TraceManuallyBarrieredEdge(trc, const_cast<PropertyNamePtr*>(name), label);
+}
+
 // The asm.js spec recognizes this set of builtin Math functions.
 enum AsmJSMathBuiltinFunction
 {
@@ -132,19 +141,20 @@ class AsmJSGlobal
             } constant;
         } u;
     } pod;
-    CacheableChars field_;
+    PropertyName* name_;
 
     friend class ModuleValidator;
 
   public:
-    AsmJSGlobal() = default;
-    AsmJSGlobal(Which which, UniqueChars field) {
+    AsmJSGlobal() {}
+    AsmJSGlobal(Which which, PropertyName* name) {
         mozilla::PodZero(&pod);  // zero padding for Valgrind
         pod.which_ = which;
-        field_ = Move(field);
+        name_ = name;
+        MOZ_ASSERT_IF(name_, name_->isTenured());
     }
-    const char* field() const {
-        return field_.get();
+    void trace(JSTracer* trc) const {
+        TraceNameField(trc, &name_, "asm.js global name");
     }
     Which which() const {
         return pod.which_;
@@ -167,6 +177,15 @@ class AsmJSGlobal
         MOZ_ASSERT(pod.u.var.initKind_ == InitImport);
         return pod.u.var.u.importType_;
     }
+    PropertyName* varImportField() const {
+        MOZ_ASSERT(pod.which_ == Variable);
+        MOZ_ASSERT(pod.u.var.initKind_ == InitImport);
+        return name_;
+    }
+    PropertyName* ffiField() const {
+        MOZ_ASSERT(pod.which_ == FFI);
+        return name_;
+    }
     uint32_t ffiIndex() const {
         MOZ_ASSERT(pod.which_ == FFI);
         return pod.u.ffiIndex_;
@@ -175,9 +194,21 @@ class AsmJSGlobal
     //   var I32 = stdlib.Int32Array;
     //   var i32 = new I32(buffer);
     // the second import has nothing to validate and thus has a null field.
+    PropertyName* maybeViewName() const {
+        MOZ_ASSERT(pod.which_ == ArrayView || pod.which_ == ArrayViewCtor);
+        return name_;
+    }
     Scalar::Type viewType() const {
         MOZ_ASSERT(pod.which_ == ArrayView || pod.which_ == ArrayViewCtor);
         return pod.u.viewType_;
+    }
+    PropertyName* mathName() const {
+        MOZ_ASSERT(pod.which_ == MathBuiltinFunction);
+        return name_;
+    }
+    PropertyName* atomicsName() const {
+        MOZ_ASSERT(pod.which_ == AtomicsBuiltinFunction);
+        return name_;
     }
     AsmJSMathBuiltinFunction mathBuiltinFunction() const {
         MOZ_ASSERT(pod.which_ == MathBuiltinFunction);
@@ -191,6 +222,14 @@ class AsmJSGlobal
         MOZ_ASSERT(pod.which_ == SimdCtor);
         return pod.u.simdCtorType_;
     }
+    PropertyName* simdCtorName() const {
+        MOZ_ASSERT(pod.which_ == SimdCtor);
+        return name_;
+    }
+    PropertyName* simdOperationName() const {
+        MOZ_ASSERT(pod.which_ == SimdOp);
+        return name_;
+    }
     SimdOperation simdOperation() const {
         MOZ_ASSERT(pod.which_ == SimdOp);
         return pod.u.simdOp.which_;
@@ -198,6 +237,10 @@ class AsmJSGlobal
     SimdType simdOperationType() const {
         MOZ_ASSERT(pod.which_ == SimdOp);
         return pod.u.simdOp.type_;
+    }
+    PropertyName* constantName() const {
+        MOZ_ASSERT(pod.which_ == Constant);
+        return name_;
     }
     ConstantKind constantKind() const {
         MOZ_ASSERT(pod.which_ == Constant);
@@ -279,23 +322,27 @@ struct AsmJSMetadata : RefCounted<AsmJSMetadata>, AsmJSMetadataCacheablePod
     AsmJSGlobalVector       globals;
     AsmJSImportVector       imports;
     AsmJSExportVector       exports;
-    CacheableChars          globalArgumentName;
-    CacheableChars          importArgumentName;
-    CacheableChars          bufferArgumentName;
+    PropertyName*           globalArgumentName;
+    PropertyName*           importArgumentName;
+    PropertyName*           bufferArgumentName;
 
     CacheResult             cacheResult;
 
     // These values are not serialized since they are relative to the
     // containing script which can be different between serialization and
     // deserialization contexts. Thus, they must be set explicitly using the
-    // ambient Parser/ScriptSource after deserialization.
+    // ambient Parser/ScriptSource after deserialization. Cloning, however,
+    // preserves the same exact parsing context and can copy these values.
     uint32_t                srcStart;
     uint32_t                srcBodyStart;
     bool                    strict;
     ScriptSourceHolder      scriptSource;
 
     AsmJSMetadata()
-      : cacheResult(CacheResult::Miss),
+      : globalArgumentName(nullptr),
+        importArgumentName(nullptr),
+        bufferArgumentName(nullptr),
+        cacheResult(CacheResult::Miss),
         srcStart(0),
         srcBodyStart(0),
         strict(false)
@@ -303,6 +350,14 @@ struct AsmJSMetadata : RefCounted<AsmJSMetadata>, AsmJSMetadataCacheablePod
 
     AsmJSMetadataCacheablePod& pod() { return *this; }
     const AsmJSMetadataCacheablePod& pod() const { return *this; }
+
+    void trace(JSTracer* trc) const {
+        for (const AsmJSGlobal& global : globals)
+            global.trace(trc);
+        TraceNameField(trc, &globalArgumentName, "asm.js global argument name");
+        TraceNameField(trc, &importArgumentName, "asm.js import argument name");
+        TraceNameField(trc, &bufferArgumentName, "asm.js buffer argument name");
+    }
 
     WASM_DECLARE_SERIALIZABLE(AsmJSMetadata)
 };
@@ -330,6 +385,10 @@ class js::AsmJSModule final : public Module
         asmJSMetadata_(&asmJSMetadata)
     {}
 
+    virtual void trace(JSTracer* trc) override {
+        Module::trace(trc);
+        asmJSMetadata_->trace(trc);
+    }
     virtual void addSizeOfMisc(MallocSizeOf mallocSizeOf, size_t* code, size_t* data) override {
         Module::addSizeOfMisc(mallocSizeOf, code, data);
         *data += mallocSizeOf(staticLinkData_.get()) + staticLinkData_->sizeOfExcludingThis(mallocSizeOf);
@@ -353,9 +412,9 @@ class js::AsmJSModule final : public Module
     const AsmJSGlobalVector& asmJSGlobals() const { return asmJSMetadata_->globals; }
     const AsmJSImportVector& asmJSImports() const { return asmJSMetadata_->imports; }
     const AsmJSExportVector& asmJSExports() const { return asmJSMetadata_->exports; }
-    const char* globalArgumentName() const { return asmJSMetadata_->globalArgumentName.get(); }
-    const char* importArgumentName() const { return asmJSMetadata_->importArgumentName.get(); }
-    const char* bufferArgumentName() const { return asmJSMetadata_->bufferArgumentName.get(); }
+    PropertyName* globalArgumentName() const { return asmJSMetadata_->globalArgumentName; }
+    PropertyName* importArgumentName() const { return asmJSMetadata_->importArgumentName; }
+    PropertyName* bufferArgumentName() const { return asmJSMetadata_->bufferArgumentName; }
     bool loadedFromCache() const { return asmJSMetadata_->cacheResult == CacheResult::Hit; }
 
     // srcStart() refers to the offset in the ScriptSource to the beginning of
@@ -1619,9 +1678,6 @@ class MOZ_STACK_CLASS ModuleValidator
     AsmJSParser&          parser_;
     ParseNode*            moduleFunctionNode_;
     PropertyName*         moduleFunctionName_;
-    PropertyName*         globalArgumentName_;
-    PropertyName*         importArgumentName_;
-    PropertyName*         bufferArgumentName_;
     MathNameMap           standardLibraryMathNames_;
     AtomicsNameMap        standardLibraryAtomicsNames_;
     SimdOperationNameMap  standardLibrarySimdOpNames_;
@@ -1700,9 +1756,6 @@ class MOZ_STACK_CLASS ModuleValidator
         parser_(parser),
         moduleFunctionNode_(moduleFunctionNode),
         moduleFunctionName_(FunctionName(moduleFunctionNode)),
-        globalArgumentName_(nullptr),
-        importArgumentName_(nullptr),
-        bufferArgumentName_(nullptr),
         standardLibraryMathNames_(cx),
         standardLibraryAtomicsNames_(cx),
         standardLibrarySimdOpNames_(cx),
@@ -1835,9 +1888,9 @@ class MOZ_STACK_CLASS ModuleValidator
 
     ExclusiveContext* cx() const             { return cx_; }
     PropertyName* moduleFunctionName() const { return moduleFunctionName_; }
-    PropertyName* globalArgumentName() const { return globalArgumentName_; }
-    PropertyName* importArgumentName() const { return importArgumentName_; }
-    PropertyName* bufferArgumentName() const { return bufferArgumentName_; }
+    PropertyName* globalArgumentName() const { return asmJSMetadata_->globalArgumentName; }
+    PropertyName* importArgumentName() const { return asmJSMetadata_->importArgumentName; }
+    PropertyName* bufferArgumentName() const { return asmJSMetadata_->bufferArgumentName; }
     ModuleGenerator& mg()                    { return mg_; }
     AsmJSParser& parser() const              { return parser_; }
     TokenStream& tokenStream() const         { return parser_.tokenStream; }
@@ -1850,37 +1903,20 @@ class MOZ_STACK_CLASS ModuleValidator
         MOZ_ASSERT(!moduleFunctionName_);
         moduleFunctionName_ = name;
     }
-    MOZ_MUST_USE bool initGlobalArgumentName(PropertyName* n) {
+    void initGlobalArgumentName(PropertyName* n) {
         MOZ_ASSERT(n->isTenured());
-        globalArgumentName_ = n;
-        if (n) {
-            asmJSMetadata_->globalArgumentName = StringToNewUTF8CharsZ(cx_, *n);
-            if (!asmJSMetadata_->globalArgumentName)
-                return false;
-        }
-        return true;
+        asmJSMetadata_->globalArgumentName = n;
     }
-    MOZ_MUST_USE bool initImportArgumentName(PropertyName* n) {
+    void initImportArgumentName(PropertyName* n) {
         MOZ_ASSERT(n->isTenured());
-        importArgumentName_ = n;
-        if (n) {
-            asmJSMetadata_->importArgumentName = StringToNewUTF8CharsZ(cx_, *n);
-            if (!asmJSMetadata_->importArgumentName)
-                return false;
-        }
-        return true;
+        asmJSMetadata_->importArgumentName = n;
     }
-    MOZ_MUST_USE bool initBufferArgumentName(PropertyName* n) {
+    void initBufferArgumentName(PropertyName* n) {
         MOZ_ASSERT(n->isTenured());
-        bufferArgumentName_ = n;
-        if (n) {
-            asmJSMetadata_->bufferArgumentName = StringToNewUTF8CharsZ(cx_, *n);
-            if (!asmJSMetadata_->bufferArgumentName)
-                return false;
-        }
-        return true;
+        asmJSMetadata_->bufferArgumentName = n;
     }
-    bool addGlobalVarInit(PropertyName* var, const NumLit& lit, Type type, bool isConst) {
+    bool addGlobalVarInit(PropertyName* var, const NumLit& lit, Type type, bool isConst)
+    {
         MOZ_ASSERT(type.isGlobalVarType());
         MOZ_ASSERT(type == Type::canonicalize(Type::lit(lit)));
 
@@ -1903,14 +1939,10 @@ class MOZ_STACK_CLASS ModuleValidator
         g.pod.u.var.initKind_ = AsmJSGlobal::InitConstant;
         g.pod.u.var.u.val_ = lit.value();
         g.pod.u.var.globalDataOffset_ = mg_.global(index).globalDataOffset;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addGlobalVarImport(PropertyName* var, PropertyName* field, Type type, bool isConst) {
         MOZ_ASSERT(type.isGlobalVarType());
-
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
 
         uint32_t index;
         ValType valType = type.canonicalToValType();
@@ -1926,20 +1958,13 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::Variable, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::Variable, field);
         g.pod.u.var.initKind_ = AsmJSGlobal::InitImport;
         g.pod.u.var.u.importType_ = valType;
         g.pod.u.var.globalDataOffset_ = mg_.global(index).globalDataOffset;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addArrayView(PropertyName* var, Scalar::Type vt, PropertyName* maybeField) {
-        UniqueChars fieldChars;
-        if (maybeField) {
-            fieldChars = StringToNewUTF8CharsZ(cx_, *maybeField);
-            if (!fieldChars)
-                return false;
-        }
-
         if (!arrayViews_.append(ArrayView(var, vt)))
             return false;
 
@@ -1950,17 +1975,13 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::ArrayView, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::ArrayView, maybeField);
         g.pod.u.viewType_ = vt;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addMathBuiltinFunction(PropertyName* var, AsmJSMathBuiltinFunction func,
                                 PropertyName* field)
     {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         Global* global = validationLifo_.new_<Global>(Global::MathBuiltinFunction);
         if (!global)
             return false;
@@ -1968,9 +1989,9 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::MathBuiltinFunction, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::MathBuiltinFunction, field);
         g.pod.u.mathBuiltinFunc_ = func;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
   private:
     bool addGlobalDoubleConstant(PropertyName* var, double constant) {
@@ -1983,39 +2004,27 @@ class MOZ_STACK_CLASS ModuleValidator
     }
   public:
     bool addMathBuiltinConstant(PropertyName* var, double constant, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         if (!addGlobalDoubleConstant(var, constant))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::Constant, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::Constant, field);
         g.pod.u.constant.value_ = constant;
         g.pod.u.constant.kind_ = AsmJSGlobal::MathConstant;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addGlobalConstant(PropertyName* var, double constant, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         if (!addGlobalDoubleConstant(var, constant))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::Constant, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::Constant, field);
         g.pod.u.constant.value_ = constant;
         g.pod.u.constant.kind_ = AsmJSGlobal::GlobalConstant;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addAtomicsBuiltinFunction(PropertyName* var, AsmJSAtomicsBuiltinFunction func,
                                    PropertyName* field)
     {
         atomicsPresent_ = true;
-
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
 
         Global* global = validationLifo_.new_<Global>(Global::AtomicsBuiltinFunction);
         if (!global)
@@ -2024,15 +2033,11 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::AtomicsBuiltinFunction, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::AtomicsBuiltinFunction, field);
         g.pod.u.atomicsBuiltinFunc_ = func;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addSimdCtor(PropertyName* var, SimdType type, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         Global* global = validationLifo_.new_<Global>(Global::SimdCtor);
         if (!global)
             return false;
@@ -2040,15 +2045,12 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::SimdCtor, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::SimdCtor, field);
         g.pod.u.simdCtorType_ = type;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
-    bool addSimdOperation(PropertyName* var, SimdType type, SimdOperation op, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
+    bool addSimdOperation(PropertyName* var, SimdType type, SimdOperation op, PropertyName* opName)
+    {
         Global* global = validationLifo_.new_<Global>(Global::SimdOp);
         if (!global)
             return false;
@@ -2057,16 +2059,12 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::SimdOp, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::SimdOp, opName);
         g.pod.u.simdOp.type_ = type;
         g.pod.u.simdOp.which_ = op;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addArrayViewCtor(PropertyName* var, Scalar::Type vt, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         Global* global = validationLifo_.new_<Global>(Global::ArrayViewCtor);
         if (!global)
             return false;
@@ -2074,15 +2072,11 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::ArrayViewCtor, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::ArrayViewCtor, field);
         g.pod.u.viewType_ = vt;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
     bool addFFI(PropertyName* var, PropertyName* field) {
-        UniqueChars fieldChars = StringToNewUTF8CharsZ(cx_, *field);
-        if (!fieldChars)
-            return false;
-
         if (asmJSMetadata_->numFFIs == UINT32_MAX)
             return false;
         uint32_t ffiIndex = asmJSMetadata_->numFFIs++;
@@ -2094,24 +2088,24 @@ class MOZ_STACK_CLASS ModuleValidator
         if (!globalMap_.putNew(var, global))
             return false;
 
-        AsmJSGlobal g(AsmJSGlobal::FFI, Move(fieldChars));
+        AsmJSGlobal g(AsmJSGlobal::FFI, field);
         g.pod.u.ffiIndex_ = ffiIndex;
-        return asmJSMetadata_->globals.append(Move(g));
+        return asmJSMetadata_->globals.append(g);
     }
-    bool addExportField(ParseNode* pn, const Func& func, PropertyName* maybeField) {
+    bool addExportField(ParseNode* pn, const Func& func, PropertyName* maybeFieldName) {
         // Record the field name of this export.
-        CacheableChars fieldChars;
-        if (maybeField)
-            fieldChars = StringToNewUTF8CharsZ(cx_, *maybeField);
+        CacheableChars fieldName;
+        if (maybeFieldName)
+            fieldName = StringToNewUTF8CharsZ(cx_, *maybeFieldName);
         else
-            fieldChars = DuplicateString("");
-        if (!fieldChars)
+            fieldName = DuplicateString("");
+        if (!fieldName)
             return false;
 
         // Declare which function is exported which gives us an index into the
         // module ExportVector.
         uint32_t exportIndex;
-        if (!mg_.declareExport(Move(fieldChars), func.index(), &exportIndex))
+        if (!mg_.declareExport(Move(fieldName), func.index(), &exportIndex))
             return false;
 
         // The exported function might have already been exported in which case
@@ -3235,20 +3229,17 @@ CheckModuleArguments(ModuleValidator& m, ParseNode* fn)
     PropertyName* arg1Name = nullptr;
     if (arg1 && !CheckModuleArgument(m, arg1, &arg1Name))
         return false;
-    if (!m.initGlobalArgumentName(arg1Name))
-        return false;
+    m.initGlobalArgumentName(arg1Name);
 
     PropertyName* arg2Name = nullptr;
     if (arg2 && !CheckModuleArgument(m, arg2, &arg2Name))
         return false;
-    if (!m.initImportArgumentName(arg2Name))
-        return false;
+    m.initImportArgumentName(arg2Name);
 
     PropertyName* arg3Name = nullptr;
     if (arg3 && !CheckModuleArgument(m, arg3, &arg3Name))
         return false;
-    if (!m.initBufferArgumentName(arg3Name))
-        return false;
+    m.initBufferArgumentName(arg3Name);
 
     return true;
 }
@@ -7276,7 +7267,7 @@ LinkFail(JSContext* cx, const char* str)
 }
 
 static bool
-GetDataProperty(JSContext* cx, HandleValue objVal, HandleAtom field, MutableHandleValue v)
+GetDataProperty(JSContext* cx, HandleValue objVal, HandlePropertyName field, MutableHandleValue v)
 {
     if (!objVal.isObject())
         return LinkFail(cx, "accessing property of non-object");
@@ -7286,7 +7277,7 @@ GetDataProperty(JSContext* cx, HandleValue objVal, HandleAtom field, MutableHand
         return LinkFail(cx, "accessing property of a Proxy");
 
     Rooted<PropertyDescriptor> desc(cx);
-    RootedId id(cx, AtomToId(field));
+    RootedId id(cx, NameToId(field));
     if (!GetPropertyDescriptor(cx, obj, id, &desc))
         return false;
 
@@ -7298,24 +7289,6 @@ GetDataProperty(JSContext* cx, HandleValue objVal, HandleAtom field, MutableHand
 
     v.set(desc.value());
     return true;
-}
-
-static bool
-GetDataProperty(JSContext* cx, HandleValue objVal, const char* fieldChars, MutableHandleValue v)
-{
-    RootedAtom field(cx, AtomizeUTF8Chars(cx, fieldChars, strlen(fieldChars)));
-    if (!field)
-        return false;
-
-    return GetDataProperty(cx, objVal, field, v);
-}
-
-static bool
-GetDataProperty(JSContext* cx, HandleValue objVal, ImmutablePropertyNamePtr field, MutableHandleValue v)
-{
-    // Help the conversion along for all the cx->names().* users.
-    HandlePropertyName fieldHandle = field;
-    return GetDataProperty(cx, objVal, fieldHandle, v);
 }
 
 static bool
@@ -7389,8 +7362,9 @@ ValidateGlobalVariable(JSContext* cx, const AsmJSGlobal& global, uint8_t* global
       }
 
       case AsmJSGlobal::InitImport: {
+        RootedPropertyName field(cx, global.varImportField());
         RootedValue v(cx);
-        if (!GetDataProperty(cx, importVal, global.field(), &v))
+        if (!GetDataProperty(cx, importVal, field, &v))
             return false;
 
         if (!v.isPrimitive() && !HasPureCoercion(cx, v))
@@ -7477,8 +7451,9 @@ static bool
 ValidateFFI(JSContext* cx, const AsmJSGlobal& global, HandleValue importVal,
             MutableHandle<FunctionVector> ffis)
 {
+    RootedPropertyName field(cx, global.ffiField());
     RootedValue v(cx);
-    if (!GetDataProperty(cx, importVal, global.field(), &v))
+    if (!GetDataProperty(cx, importVal, field, &v))
         return false;
 
     if (!IsFunctionObject(v))
@@ -7491,11 +7466,12 @@ ValidateFFI(JSContext* cx, const AsmJSGlobal& global, HandleValue importVal,
 static bool
 ValidateArrayView(JSContext* cx, const AsmJSGlobal& global, HandleValue globalVal)
 {
-    if (!global.field())
+    RootedPropertyName field(cx, global.maybeViewName());
+    if (!field)
         return true;
 
     RootedValue v(cx);
-    if (!GetDataProperty(cx, globalVal, global.field(), &v))
+    if (!GetDataProperty(cx, globalVal, field, &v))
         return false;
 
     bool tac = IsTypedArrayConstructor(v, global.viewType());
@@ -7512,7 +7488,8 @@ ValidateMathBuiltinFunction(JSContext* cx, const AsmJSGlobal& global, HandleValu
     if (!GetDataProperty(cx, globalVal, cx->names().Math, &v))
         return false;
 
-    if (!GetDataProperty(cx, v, global.field(), &v))
+    RootedPropertyName field(cx, global.mathName());
+    if (!GetDataProperty(cx, v, field, &v))
         return false;
 
     Native native = nullptr;
@@ -7591,7 +7568,8 @@ ValidateSimdOperation(JSContext* cx, const AsmJSGlobal& global, HandleValue glob
     RootedValue v(cx);
     JS_ALWAYS_TRUE(ValidateSimdType(cx, global, globalVal, &v));
 
-    if (!GetDataProperty(cx, v, global.field(), &v))
+    RootedPropertyName opName(cx, global.simdOperationName());
+    if (!GetDataProperty(cx, v, opName, &v))
         return false;
 
     Native native = nullptr;
@@ -7713,8 +7691,8 @@ ValidateAtomicsBuiltinFunction(JSContext* cx, const AsmJSGlobal& global, HandleV
     RootedValue v(cx);
     if (!GetDataProperty(cx, globalVal, cx->names().Atomics, &v))
         return false;
-
-    if (!GetDataProperty(cx, v, global.field(), &v))
+    RootedPropertyName field(cx, global.atomicsName());
+    if (!GetDataProperty(cx, v, field, &v))
         return false;
 
     Native native = nullptr;
@@ -7740,6 +7718,7 @@ ValidateAtomicsBuiltinFunction(JSContext* cx, const AsmJSGlobal& global, HandleV
 static bool
 ValidateConstant(JSContext* cx, const AsmJSGlobal& global, HandleValue globalVal)
 {
+    RootedPropertyName field(cx, global.constantName());
     RootedValue v(cx, globalVal);
 
     if (global.constantKind() == AsmJSGlobal::MathConstant) {
@@ -7747,7 +7726,7 @@ ValidateConstant(JSContext* cx, const AsmJSGlobal& global, HandleValue globalVal
             return false;
     }
 
-    if (!GetDataProperty(cx, v, global.field(), &v))
+    if (!GetDataProperty(cx, v, field, &v))
         return false;
 
     if (!v.isNumber())
@@ -7884,21 +7863,6 @@ DynamicallyLinkModule(JSContext* cx, const CallArgs& args, Handle<WasmModuleObje
     return module.dynamicallyLink(cx, moduleObj, buffer, imports, exportObj);
 }
 
-static MOZ_MUST_USE bool
-MaybeAppendUTF8Name(JSContext* cx, const char* utf8Chars, MutableHandle<PropertyNameVector> names)
-{
-    if (!utf8Chars)
-        return true;
-
-    UTF8Chars utf8(utf8Chars, strlen(utf8Chars));
-
-    JSAtom* atom = AtomizeUTF8Chars(cx, utf8Chars, strlen(utf8Chars));
-    if (!atom)
-        return false;
-
-    return names.append(atom->asPropertyName());
-}
-
 static bool
 HandleDynamicLinkFailure(JSContext* cx, const CallArgs& args, AsmJSModule& module, HandleAtom name)
 {
@@ -7930,12 +7894,15 @@ HandleDynamicLinkFailure(JSContext* cx, const CallArgs& args, AsmJSModule& modul
         return false;
 
     Rooted<PropertyNameVector> formals(cx, PropertyNameVector(cx));
-    if (!MaybeAppendUTF8Name(cx, module.globalArgumentName(), &formals))
+    if (!formals.reserve(3))
         return false;
-    if (!MaybeAppendUTF8Name(cx, module.importArgumentName(), &formals))
-        return false;
-    if (!MaybeAppendUTF8Name(cx, module.bufferArgumentName(), &formals))
-        return false;
+
+    if (module.globalArgumentName())
+        formals.infallibleAppend(module.globalArgumentName());
+    if (module.importArgumentName())
+        formals.infallibleAppend(module.importArgumentName());
+    if (module.bufferArgumentName())
+        formals.infallibleAppend(module.bufferArgumentName());
 
     CompileOptions options(cx);
     options.setMutedErrors(source->mutedErrors())
@@ -8037,33 +8004,27 @@ NewModuleFunction(ExclusiveContext* cx, JSFunction* origFun, HandleObject module
 /*****************************************************************************/
 // Caching and cloning
 
-size_t
-AsmJSGlobal::serializedSize() const
-{
-    return sizeof(pod) +
-           field_.serializedSize();
-}
-
 uint8_t*
 AsmJSGlobal::serialize(uint8_t* cursor) const
 {
     cursor = WriteBytes(cursor, &pod, sizeof(pod));
-    cursor = field_.serialize(cursor);
+    cursor = SerializeName(cursor, name_);
     return cursor;
+}
+
+size_t
+AsmJSGlobal::serializedSize() const
+{
+    return sizeof(pod) +
+           SerializedNameSize(name_);
 }
 
 const uint8_t*
 AsmJSGlobal::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
 {
     (cursor = ReadBytes(cursor, &pod, sizeof(pod))) &&
-    (cursor = field_.deserialize(cx, cursor));
+    (cursor = DeserializeName(cx, cursor, &name_));
     return cursor;
-}
-
-size_t
-AsmJSGlobal::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
-{
-    return field_.sizeOfExcludingThis(mallocSizeOf);
 }
 
 size_t
@@ -8073,9 +8034,9 @@ AsmJSMetadata::serializedSize() const
            SerializedVectorSize(globals) +
            SerializedPodVectorSize(imports) +
            SerializedPodVectorSize(exports) +
-           globalArgumentName.serializedSize() +
-           importArgumentName.serializedSize() +
-           bufferArgumentName.serializedSize();
+           SerializedNameSize(globalArgumentName) +
+           SerializedNameSize(importArgumentName) +
+           SerializedNameSize(bufferArgumentName);
 }
 
 uint8_t*
@@ -8085,9 +8046,9 @@ AsmJSMetadata::serialize(uint8_t* cursor) const
     cursor = SerializeVector(cursor, globals);
     cursor = SerializePodVector(cursor, imports);
     cursor = SerializePodVector(cursor, exports);
-    cursor = globalArgumentName.serialize(cursor);
-    cursor = importArgumentName.serialize(cursor);
-    cursor = bufferArgumentName.serialize(cursor);
+    cursor = SerializeName(cursor, globalArgumentName);
+    cursor = SerializeName(cursor, importArgumentName);
+    cursor = SerializeName(cursor, bufferArgumentName);
     return cursor;
 }
 
@@ -8098,9 +8059,9 @@ AsmJSMetadata::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
     (cursor = DeserializeVector(cx, cursor, &globals)) &&
     (cursor = DeserializePodVector(cx, cursor, &imports)) &&
     (cursor = DeserializePodVector(cx, cursor, &exports)) &&
-    (cursor = globalArgumentName.deserialize(cx, cursor)) &&
-    (cursor = importArgumentName.deserialize(cx, cursor)) &&
-    (cursor = bufferArgumentName.deserialize(cx, cursor));
+    (cursor = DeserializeName(cx, cursor, &globalArgumentName)) &&
+    (cursor = DeserializeName(cx, cursor, &importArgumentName)) &&
+    (cursor = DeserializeName(cx, cursor, &bufferArgumentName));
     cacheResult = CacheResult::Hit;
     return cursor;
 }
@@ -8108,12 +8069,9 @@ AsmJSMetadata::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
 size_t
 AsmJSMetadata::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
 {
-    return SizeOfVectorExcludingThis(globals, mallocSizeOf) +
+    return globals.sizeOfExcludingThis(mallocSizeOf) +
            imports.sizeOfExcludingThis(mallocSizeOf) +
-           exports.sizeOfExcludingThis(mallocSizeOf) +
-           globalArgumentName.sizeOfExcludingThis(mallocSizeOf) +
-           importArgumentName.sizeOfExcludingThis(mallocSizeOf) +
-           bufferArgumentName.sizeOfExcludingThis(mallocSizeOf);
+           exports.sizeOfExcludingThis(mallocSizeOf);
 }
 
 size_t
@@ -8225,11 +8183,32 @@ AsmJSModule::clone(JSContext* cx, MutableHandle<WasmModuleObject*> moduleObj) co
 
 namespace {
 
+struct PropertyNameWrapper
+{
+    PropertyName* name;
+
+    PropertyNameWrapper()
+      : name(nullptr)
+    {}
+    explicit PropertyNameWrapper(PropertyName* name)
+      : name(name)
+    {}
+    size_t serializedSize() const {
+        return SerializedNameSize(name);
+    }
+    uint8_t* serialize(uint8_t* cursor) const {
+        return SerializeName(cursor, name);
+    }
+    const uint8_t* deserialize(ExclusiveContext* cx, const uint8_t* cursor) {
+        return DeserializeName(cx, cursor, &name);
+    }
+};
+
 class ModuleChars
 {
   protected:
     uint32_t isFunCtor_;
-    Vector<CacheableChars, 0, SystemAllocPolicy> funCtorArgs_;
+    Vector<PropertyNameWrapper, 0, SystemAllocPolicy> funCtorArgs_;
 
   public:
     static uint32_t beginOffset(AsmJSParser& parser) {
@@ -8286,8 +8265,7 @@ class ModuleCharsForStore : ModuleChars
             unsigned numArgs;
             ParseNode* arg = FunctionArgsList(parser.pc->maybeFunction, &numArgs);
             for (unsigned i = 0; i < numArgs; i++, arg = arg->pn_next) {
-                UniqueChars name = StringToNewUTF8CharsZ(nullptr, *arg->name());
-                if (!name || !funCtorArgs_.append(Move(name)))
+                if (!funCtorArgs_.append(arg->name()))
                     return false;
             }
         }
@@ -8368,46 +8346,11 @@ class ModuleCharsForLookup : ModuleChars
             if (funCtorArgs_.length() != numArgs)
                 return false;
             for (unsigned i = 0; i < funCtorArgs_.length(); i++, arg = arg->pn_next) {
-                UniqueChars name = StringToNewUTF8CharsZ(nullptr, *arg->name());
-                if (!name || strcmp(funCtorArgs_[i].get(), name.get()))
+                if (funCtorArgs_[i].name != arg->name())
                     return false;
             }
         }
         return true;
-    }
-};
-
-struct ScopedCacheEntryOpenedForWrite
-{
-    ExclusiveContext* cx;
-    const size_t serializedSize;
-    uint8_t* memory;
-    intptr_t handle;
-
-    ScopedCacheEntryOpenedForWrite(ExclusiveContext* cx, size_t serializedSize)
-      : cx(cx), serializedSize(serializedSize), memory(nullptr), handle(-1)
-    {}
-
-    ~ScopedCacheEntryOpenedForWrite() {
-        if (memory)
-            cx->asmJSCacheOps().closeEntryForWrite(serializedSize, memory, handle);
-    }
-};
-
-struct ScopedCacheEntryOpenedForRead
-{
-    ExclusiveContext* cx;
-    size_t serializedSize;
-    const uint8_t* memory;
-    intptr_t handle;
-
-    explicit ScopedCacheEntryOpenedForRead(ExclusiveContext* cx)
-      : cx(cx), serializedSize(0), memory(nullptr), handle(0)
-    {}
-
-    ~ScopedCacheEntryOpenedForRead() {
-        if (memory)
-            cx->asmJSCacheOps().closeEntryForRead(serializedSize, memory, handle);
     }
 };
 
@@ -8793,23 +8736,6 @@ js::IsAsmJSModuleLoadedFromCache(JSContext* cx, unsigned argc, Value* vp)
 /*****************************************************************************/
 // asm.js toString/toSource support
 
-static MOZ_MUST_USE bool
-MaybeAppendUTF8Chars(JSContext* cx, const char* sep, const char* utf8Chars, StringBuffer* sb)
-{
-    if (!utf8Chars)
-        return true;
-
-    UTF8Chars utf8(utf8Chars, strlen(utf8Chars));
-
-    size_t length;
-    UniqueTwoByteChars twoByteChars(UTF8CharsToNewTwoByteCharsZ(cx, utf8, &length).get());
-    if (!twoByteChars)
-        return false;
-
-    return sb->append(sep, strlen(sep)) &&
-           sb->append(twoByteChars.get(), length);
-}
-
 JSString*
 js::AsmJSModuleToString(JSContext* cx, HandleFunction fun, bool addParenToLambda)
 {
@@ -8845,12 +8771,18 @@ js::AsmJSModuleToString(JSContext* cx, HandleFunction fun, bool addParenToLambda
             if (!out.append("("))
                 return nullptr;
 
-            if (!MaybeAppendUTF8Chars(cx, "", module.globalArgumentName(), &out))
-                return nullptr;
-            if (!MaybeAppendUTF8Chars(cx, ", ", module.importArgumentName(), &out))
-                return nullptr;
-            if (!MaybeAppendUTF8Chars(cx, ", ", module.bufferArgumentName(), &out))
-                return nullptr;
+            if (PropertyName* argName = module.globalArgumentName()) {
+                if (!out.append(argName))
+                    return nullptr;
+            }
+            if (PropertyName* argName = module.importArgumentName()) {
+                if (!out.append(", ") || !out.append(argName))
+                    return nullptr;
+            }
+            if (PropertyName* argName = module.bufferArgumentName()) {
+                if (!out.append(", ") || !out.append(argName))
+                    return nullptr;
+            }
 
             if (!out.append(") {\n"))
                 return nullptr;
