@@ -41,6 +41,7 @@ ModuleGenerator::ModuleGenerator(ExclusiveContext* cx)
   : cx_(cx),
     jcx_(CompileRuntime::get(cx->compartment()->runtimeFromAnyThread())),
     globalDataLength_(InitialGlobalDataBytes),
+    slowFuncs_(cx),
     numSigs_(0),
     lifo_(GENERATOR_LIFO_DEFAULT_CHUNK_SIZE),
     alloc_(&lifo_),
@@ -333,6 +334,13 @@ ModuleGenerator::finishTask(IonCompileTask* task)
     if (!masm_.asmMergeWith(results.masm()))
         return false;
     MOZ_ASSERT(masm_.size() == offsetInWhole + results.masm().size());
+
+    // Keep a record of slow functions for printing in the final console message.
+    unsigned totalTime = func.generateTime() + results.compileTime();
+    if (totalTime >= SlowFunction::msThreshold) {
+        if (!slowFuncs_.emplaceBack(func.index(), totalTime, func.lineOrBytecode()))
+            return false;
+    }
 
     freeTasks_.infallibleAppend(task);
     return true;
@@ -781,7 +789,7 @@ ModuleGenerator::startFuncDef(uint32_t lineOrBytecode, FunctionGenerator* fg)
 }
 
 bool
-ModuleGenerator::finishFuncDef(uint32_t funcIndex, FunctionGenerator* fg)
+ModuleGenerator::finishFuncDef(uint32_t funcIndex, unsigned generateTime, FunctionGenerator* fg)
 {
     TraceLoggerThread* logger = nullptr;
     if (cx_->isJSContext())
@@ -796,7 +804,8 @@ ModuleGenerator::finishFuncDef(uint32_t funcIndex, FunctionGenerator* fg)
                                           funcIndex,
                                           funcSig(funcIndex),
                                           fg->lineOrBytecode_,
-                                          Move(fg->callSiteLineNums_));
+                                          Move(fg->callSiteLineNums_),
+                                          generateTime);
     if (!func)
         return false;
 
@@ -875,7 +884,8 @@ ModuleGenerator::finish(CacheableCharsVector&& prettyFuncNames,
                         UniqueCodeSegment* codeSegment,
                         SharedMetadata* metadata,
                         SharedStaticLinkData* staticLinkDataOut,
-                        SharedExportMap* exportMap)
+                        SharedExportMap* exportMap,
+                        SlowFunctionVector* slowFuncs)
 {
     MOZ_ASSERT(!activeFunc_);
     MOZ_ASSERT(finishedFuncDefs_);
@@ -936,5 +946,6 @@ ModuleGenerator::finish(CacheableCharsVector&& prettyFuncNames,
     *metadata = metadata_.forget();
     *staticLinkDataOut = staticLinkData.forget();
     *exportMap = exportMap_.forget();
+    *slowFuncs = Move(slowFuncs_);
     return true;
 }
