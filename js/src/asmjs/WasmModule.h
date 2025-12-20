@@ -95,7 +95,10 @@ typedef RefPtr<const StaticLinkData> SharedStaticLinkData;
 // The 'fieldNames' vector provides the list of names of the module's exports.
 // For each field in fieldNames, 'fieldsToExports' provides either:
 //  - the sentinel value MemoryExport indicating an export of linear memory; or
-//  - the index of an export into the ExportVector in Metadata
+//  - the index of an export (both into the module's ExportVector and the
+//    ExportMap's exportFuncIndices vector).
+// Lastly, the 'exportFuncIndices' vector provides, for each exported function,
+// the internal index of the function.
 //
 // The ExportMap is built incrementally by ModuleGenerator and then shared
 // immutably between modules.
@@ -106,6 +109,7 @@ struct ExportMap : RefCounted<ExportMap>
 {
     CacheableCharsVector fieldNames;
     Uint32Vector fieldsToExports;
+    Uint32Vector exportFuncIndices;
 
     WASM_DECLARE_SERIALIZABLE(ExportMap)
 };

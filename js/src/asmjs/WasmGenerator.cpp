@@ -359,8 +359,11 @@ ModuleGenerator::finishCodegen(StaticLinkData* link)
 
         if (!entries.resize(numExports()))
             return false;
-        for (uint32_t i = 0; i < numExports(); i++)
-            entries[i] = GenerateEntry(masm, metadata_->exports[i], usesHeap());
+        for (uint32_t i = 0; i < numExports(); i++) {
+            uint32_t target = exportMap_->exportFuncIndices[i];
+            const Sig& sig = metadata_->exports[i].sig();
+            entries[i] = GenerateEntry(masm, target, sig, usesHeap());
+        }
 
         if (!interpExits.resize(numImports()))
             return false;
@@ -696,9 +699,10 @@ ModuleGenerator::declareExport(UniqueChars fieldName, uint32_t funcIndex, uint32
     if (!copy.clone(funcSig(funcIndex)))
         return false;
 
-    return metadata_->exports.emplaceBack(Move(copy), funcIndex) &&
+    return metadata_->exports.append(Move(copy)) &&
+           funcIndexToExport_.add(p, funcIndex, newExportIndex) &&
            exportMap_->fieldsToExports.append(newExportIndex) &&
-           funcIndexToExport_.add(p, funcIndex, newExportIndex);
+           exportMap_->exportFuncIndices.append(funcIndex);
 }
 
 uint32_t

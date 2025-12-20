@@ -192,7 +192,8 @@ size_t
 ExportMap::serializedSize() const
 {
     return SerializedVectorSize(fieldNames) +
-           SerializedPodVectorSize(fieldsToExports);
+           SerializedPodVectorSize(fieldsToExports) +
+           SerializedPodVectorSize(exportFuncIndices);
 }
 
 uint8_t*
@@ -200,6 +201,7 @@ ExportMap::serialize(uint8_t* cursor) const
 {
     cursor = SerializeVector(cursor, fieldNames);
     cursor = SerializePodVector(cursor, fieldsToExports);
+    cursor = SerializePodVector(cursor, exportFuncIndices);
     return cursor;
 }
 
@@ -207,7 +209,8 @@ const uint8_t*
 ExportMap::deserialize(ExclusiveContext* cx, const uint8_t* cursor)
 {
     (cursor = DeserializeVector(cx, cursor, &fieldNames)) &&
-    (cursor = DeserializePodVector(cx, cursor, &fieldsToExports));
+    (cursor = DeserializePodVector(cx, cursor, &fieldsToExports)) &&
+    (cursor = DeserializePodVector(cx, cursor, &exportFuncIndices));
     return cursor;
 }
 
@@ -215,7 +218,8 @@ size_t
 ExportMap::sizeOfExcludingThis(MallocSizeOf mallocSizeOf) const
 {
     return SizeOfVectorExcludingThis(fieldNames, mallocSizeOf) &&
-           fieldsToExports.sizeOfExcludingThis(mallocSizeOf);
+           fieldsToExports.sizeOfExcludingThis(mallocSizeOf) &&
+           exportFuncIndices.sizeOfExcludingThis(mallocSizeOf);
 }
 
 uint8_t*
@@ -748,10 +752,9 @@ NewExportedFunction(JSContext* cx, Handle<WasmModuleObject*> moduleObj, const Ex
                     uint32_t exportIndex)
 {
     Module& module = moduleObj->module();
-    const Export& exp = module.exports()[exportIndex];
-    unsigned numArgs = exp.sig().args().length();
+    unsigned numArgs = module.exports()[exportIndex].sig().args().length();
 
-    RootedAtom name(cx, module.getFuncAtom(cx, exp.funcIndex()));
+    RootedAtom name(cx, module.getFuncAtom(cx, exportMap.exportFuncIndices[exportIndex]));
     if (!name)
         return nullptr;
 
@@ -774,6 +777,7 @@ CreateExportObject(JSContext* cx,
                    const ExportVector& exports,
                    MutableHandleObject exportObj)
 {
+    MOZ_ASSERT(exportMap.exportFuncIndices.length() == exports.length());
     MOZ_ASSERT(exportMap.fieldNames.length() == exportMap.fieldsToExports.length());
 
     for (size_t fieldIndex = 0; fieldIndex < exportMap.fieldNames.length(); fieldIndex++) {
