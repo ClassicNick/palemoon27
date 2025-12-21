@@ -236,7 +236,7 @@ using CensusTraversal = BreadthFirst<CensusHandler>;
 
 // Examine the census options supplied by the API consumer, and (among other
 // things) use that to build a CountType tree.
-MOZ_MUST_USE bool ParseCensusOptions(JSContext* cx, Census& census, HandleObject options,
+JS_FRIEND_API(bool) ParseCensusOptions(JSContext* cx, Census& census, HandleObject options,
                                      CountTypePtr& outResult);
 
 // Parse the breakdown language (as described in

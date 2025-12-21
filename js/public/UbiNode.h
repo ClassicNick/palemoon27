@@ -463,7 +463,7 @@ class JS_FRIEND_API(ConcreteStackFrame<void>) : public BaseStackFrame {
     bool isSelfHosted() const override { MOZ_CRASH("null JS::ubi::StackFrame"); }
 };
 
-MOZ_MUST_USE bool ConstructSavedFrameStackSlow(JSContext* cx, JS::ubi::StackFrame& frame,
+JS_FRIEND_API(bool) ConstructSavedFrameStackSlow(JSContext* cx, JS::ubi::StackFrame& frame,
                                                MutableHandleObject outSavedFrameStack);
 
 
