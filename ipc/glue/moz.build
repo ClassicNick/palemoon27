@@ -23,7 +23,6 @@ EXPORTS.mozilla.ipc += [
     'GeckoChildProcessHost.h',
     'InputStreamUtils.h',
     'IOThreadChild.h',
-    'IPCStreamUtils.h',
     'MessageChannel.h',
     'MessageLink.h',
     'Neutering.h',
@@ -120,7 +119,6 @@ UNIFIED_SOURCES += [
     'FileDescriptorUtils.cpp',
     'InputStreamUtils.cpp',
     'IPCMessageUtils.cpp',
-    'IPCStreamUtils.cpp',
     'MessageChannel.cpp',
     'MessageLink.cpp',
     'MessagePump.cpp',
@@ -160,7 +158,6 @@ LOCAL_INCLUDES += [
 
 IPDL_SOURCES = [
     'InputStreamParams.ipdlh',
-    'IPCStream.ipdlh',
     'PBackground.ipdl',
     'PBackgroundSharedTypes.ipdlh',
     'PBackgroundTest.ipdl',
