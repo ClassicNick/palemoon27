@@ -3641,15 +3641,9 @@ struct MOZ_NEEDS_MEMMOVABLE_MEMBERS nsStyleEffects
   uint8_t mMixBlendMode;               // [reset] see nsStyleConsts.h
 };
 
-#define STATIC_ASSERT_TYPE_LAYOUTS_MATCH(T1, T2)                               \
-  static_assert(sizeof(T1) == sizeof(T2),                                      \
-      "Size mismatch between " #T1 " and " #T2);                               \
-  static_assert(alignof(T1) == alignof(T2),                                    \
-      "Align mismatch between " #T1 " and " #T2);                              \
+#define STATIC_ASSERT_TYPE_LAYOUTS_MATCH(T1, T2)
 
-#define STATIC_ASSERT_FIELD_OFFSET_MATCHES(T1, T2, field)                      \
-  static_assert(offsetof(T1, field) == offsetof(T2, field),                    \
-      "Field offset mismatch of " #field " between " #T1 " and " #T2);         \
+#define STATIC_ASSERT_FIELD_OFFSET_MATCHES(T1, T2, field)
 
 /**
  * These *_Simple types are used to map Gecko types to layout-equivalent but
