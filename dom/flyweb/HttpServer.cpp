@@ -20,6 +20,8 @@
 
 static NS_DEFINE_CID(kStreamTransportServiceCID, NS_STREAMTRANSPORTSERVICE_CID);
 
+using namespace mozilla::net;
+
 namespace mozilla {
 namespace dom {
 
@@ -872,7 +874,7 @@ HttpServer::Connection::QueueResponse(InternalResponse* aResponse)
   }
   nsCOMPtr<nsIInputStream> body;
   int64_t bodySize;
-  aResponse->GetBody(getter_AddRefs(body), &bodySize);
+  aResponse->GetBody(getter_AddRefs(body));
 
   if (body && bodySize >= 0) {
     nsCString sizeStr;
@@ -1139,7 +1141,7 @@ StreamCopier::Run()
     WriteState state = { this, NS_OK };
     uint32_t written;
     rv = mSink->WriteSegments(FillOutputBufferHelper, &state,
-                              mozilla::net::nsIOService::gDefaultSegmentSize,
+                              nsIOService::gDefaultSegmentSize,
                               &written);
     MOZ_ASSERT(NS_SUCCEEDED(rv) || NS_SUCCEEDED(state.sourceRv));
     if (rv == NS_BASE_STREAM_WOULD_BLOCK) {

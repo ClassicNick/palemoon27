@@ -836,7 +836,7 @@ FlyWebService::Init()
 already_AddRefed<Promise>
 FlyWebService::PublishServer(const nsAString& aName,
                              const FlyWebPublishOptions& aOptions,
-                             nsPIDOMWindowInner* aWindow,
+                             nsPIDOMWindow* aWindow,
                              ErrorResult& aRv)
 {
   MOZ_ASSERT(NS_IsMainThread());
@@ -945,7 +945,7 @@ FlyWebService::HasConnectionOrServer(uint64_t aWindowID)
 {
   MOZ_ASSERT(NS_IsMainThread());
   for (FlyWebPublishedServer* server : mServers) {
-    nsPIDOMWindowInner* win = server->GetOwner();
+    nsPIDOMWindow* win = server->GetOwner();
     if (win && win->WindowID() == aWindowID) {
       return true;
     }
@@ -1101,7 +1101,7 @@ FlyWebService::CreateTransportForHost(const char **types,
   PRNetAddrToNetAddr(&prNetAddr, &netAddr);
   netAddr.inet.port = htons(discPort);
 
-  RefPtr<mozilla::net::nsSocketTransport> trans = new mozilla::net::nsSocketTransport();
+  RefPtr<nsSocketTransport> trans = new nsSocketTransport();
   nsresult rv = trans->InitPreResolved(
     types, typeCount, host, port, hostRoute, portRoute, proxyInfo, &netAddr);
   NS_ENSURE_SUCCESS(rv, rv);

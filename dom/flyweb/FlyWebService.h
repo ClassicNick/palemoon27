@@ -50,7 +50,7 @@ public:
 
   already_AddRefed<Promise> PublishServer(const nsAString& aName,
                                           const FlyWebPublishOptions& aOptions,
-                                          nsPIDOMWindowInner* aWindow,
+                                          nsPIDOMWindow* aWindow,
                                           ErrorResult& aRv);
 
   void UnregisterServer(FlyWebPublishedServer* aServer);

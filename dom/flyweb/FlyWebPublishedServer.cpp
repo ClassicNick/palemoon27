@@ -23,7 +23,7 @@ static LazyLogModule gFlyWebPublishedServerLog("FlyWebPublishedServer");
 
 NS_IMPL_ISUPPORTS_INHERITED0(FlyWebPublishedServer, mozilla::DOMEventTargetHelper)
 
-FlyWebPublishedServer::FlyWebPublishedServer(nsPIDOMWindowInner* aOwner,
+FlyWebPublishedServer::FlyWebPublishedServer(nsPIDOMWindow* aOwner,
                                              const nsAString& aName,
                                              const FlyWebPublishOptions& aOptions,
                                              Promise* aPublishPromise)
@@ -161,7 +161,7 @@ FlyWebPublishedServer::OnWebSocketAccept(InternalRequest* aConnectRequest,
   }
   MOZ_ASSERT(provider);
 
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(GetOwner());
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(GetOwner());
   AutoJSContext cx;
   GlobalObject global(cx, nsGlobalWindow::Cast(window)->FastGetGlobalJSObject());
 

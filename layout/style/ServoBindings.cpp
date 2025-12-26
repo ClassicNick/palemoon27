@@ -22,6 +22,7 @@
 
 #include "mozilla/EventStates.h"
 #include "mozilla/dom/Element.h"
+#include "nsIAtom.h"
 
 uint32_t
 Gecko_ChildrenCount(RawGeckoNode* aNode)
@@ -208,8 +209,10 @@ Gecko_ClassOrClassList(RawGeckoElement* aElement,
   // Note: We could also expose this array as an array of nsCOMPtrs, since
   // bindgen knows what those look like, and eliminate the reinterpret_cast.
   // But it's not obvious that that would be preferable.
-  static_assert(sizeof(nsCOMPtr<nsIAtom>) == sizeof(nsIAtom*), "Bad simplification");
-  static_assert(alignof(nsCOMPtr<nsIAtom>) == alignof(nsIAtom*), "Bad simplification");
+  // Don't do static_assert functions here because it breaks
+  // MSVC2013 compatibility
+  // static_assert(sizeof(nsCOMPtr<nsIAtom>) == sizeof(nsIAtom*), "Bad simplification");
+  // static_assert(alignof(nsCOMPtr<nsIAtom>) == alignof(nsIAtom*), "Bad simplification");
 
   nsCOMPtr<nsIAtom>* elements = atomArray->Elements();
   nsIAtom** rawElements = reinterpret_cast<nsIAtom**>(elements);

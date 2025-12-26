@@ -414,6 +414,29 @@ nsCertOverrideService::RememberValidityOverride(const nsACString& aHostName,
 }
 
 NS_IMETHODIMP
+nsCertOverrideService::RememberTemporaryValidityOverrideUsingFingerprint(
+  const nsACString& aHostName,
+  int32_t aPort,
+  const nsACString& aCertFingerprint,
+  uint32_t aOverrideBits)
+{
+  if(aCertFingerprint.IsEmpty() || aHostName.IsEmpty() || (aPort < -1)) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  ReentrantMonitorAutoEnter lock(monitor);
+  AddEntryToList(aHostName, aPort,
+                 nullptr, // No cert to keep alive
+                 true, // temporary
+                 mDottedOidForStoringNewHashes,
+                 aCertFingerprint,
+                 (nsCertOverride::OverrideBits)aOverrideBits,
+                 EmptyCString());  // dbkey
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsCertOverrideService::HasMatchingOverride(const nsACString & aHostName, int32_t aPort,
                                            nsIX509Cert *aCert, 
                                            uint32_t *aOverrideBits,

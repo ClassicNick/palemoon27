@@ -29,7 +29,7 @@ class FlyWebPublishedServer final : public mozilla::DOMEventTargetHelper
                                   , public HttpServerListener
 {
 public:
-  FlyWebPublishedServer(nsPIDOMWindowInner* aOwner,
+  FlyWebPublishedServer(nsPIDOMWindow* aOwner,
                         const nsAString& aName,
                         const FlyWebPublishOptions& aOptions,
                         Promise* aPublishPromise);

@@ -113,6 +113,34 @@ public:
     , mUseURLCredentials(false)
   {
   }
+  
+  explicit InternalRequest(const nsACString& aURL)
+    : mMethod("GET")
+    , mHeaders(new InternalHeaders(HeadersGuardEnum::None))
+    , mContentPolicyType(nsIContentPolicy::TYPE_FETCH)
+    , mReferrer(NS_LITERAL_STRING(kFETCH_CLIENT_REFERRER_STR))
+    , mReferrerPolicy(ReferrerPolicy::_empty)
+    , mMode(RequestMode::No_cors)
+    , mCredentialsMode(RequestCredentials::Omit)
+    , mResponseTainting(LoadTainting::Basic)
+    , mCacheMode(RequestCache::Default)
+    , mRedirectMode(RequestRedirect::Follow)
+    , mAuthenticationFlag(false)
+    , mForceOriginHeader(false)
+    , mPreserveContentCodings(false)
+      // FIXME(nsm): This should be false by default, but will lead to the
+      // algorithm never loading data: URLs right now. See Bug 1018872 about
+      // how certain contexts will override it to set it to true. Fetch
+      // specification does not handle this yet.
+    , mSameOriginDataURL(true)
+    , mSkipServiceWorker(false)
+    , mSynchronous(false)
+    , mUnsafeRequest(false)
+    , mUseURLCredentials(false)
+  {
+    MOZ_ASSERT(!aURL.IsEmpty());
+  }
+
 
   InternalRequest(const nsACString& aURL,
                   const nsACString& aMethod,
