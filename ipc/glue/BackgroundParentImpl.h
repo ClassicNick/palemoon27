@@ -99,12 +99,6 @@ protected:
   virtual bool
   DeallocPNuwaParent(PNuwaParent* aActor) override;
 
-  virtual PSendStreamParent*
-  AllocPSendStreamParent() override;
-
-  virtual bool
-  DeallocPSendStreamParent(PSendStreamParent* aActor) override;
-
   virtual PServiceWorkerManagerParent*
   AllocPServiceWorkerManagerParent() override;
 

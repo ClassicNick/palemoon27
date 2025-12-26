@@ -23,7 +23,6 @@
 #include "mozilla/dom/MessagePortChild.h"
 #include "mozilla/dom/NuwaChild.h"
 #include "mozilla/ipc/PBackgroundTestChild.h"
-#include "mozilla/ipc/PSendStreamChild.h"
 #include "mozilla/layout/VsyncChild.h"
 #include "mozilla/net/PUDPSocketChild.h"
 #include "mozilla/dom/network/UDPSocketChild.h"
@@ -396,19 +395,6 @@ BackgroundChildImpl::DeallocPNuwaChild(PNuwaChild* aActor)
 {
   MOZ_ASSERT(aActor);
 
-  delete aActor;
-  return true;
-}
-
-PSendStreamChild*
-BackgroundChildImpl::AllocPSendStreamChild()
-{
-  MOZ_CRASH("PSendStreamChild actors should be manually constructed!");
-}
-
-bool
-BackgroundChildImpl::DeallocPSendStreamChild(PSendStreamChild* aActor)
-{
   delete aActor;
   return true;
 }

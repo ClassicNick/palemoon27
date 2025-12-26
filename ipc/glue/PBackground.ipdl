@@ -15,7 +15,6 @@ include protocol PFileSystemRequest;
 include protocol PMessagePort;
 include protocol PCameras;
 include protocol PNuwa;
-include protocol PSendStream;
 include protocol PServiceWorkerManager;
 include protocol PUDPSocket;
 include protocol PVsync;
@@ -54,11 +53,6 @@ sync protocol PBackground
   manages PMessagePort;
   manages PCameras;
   manages PNuwa;
-<<<<<<< HEAD
-=======
-  manages PQuota;
-  manages PSendStream;
->>>>>>> ede304dc99 (Bug 1093357 P1 Implement an actor for streaming pipes from child to parent. r=jld)
   manages PServiceWorkerManager;
   manages PUDPSocket;
   manages PVsync;
@@ -86,8 +80,6 @@ parent:
   async PMessagePort(nsID uuid, nsID destinationUuid, uint32_t sequenceId);
 
   async PNuwa();
-
-  async PSendStream();
 
   async MessagePortForceClose(nsID uuid, nsID destinationUuid, uint32_t sequenceId);
 

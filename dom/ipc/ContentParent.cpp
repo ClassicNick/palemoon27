@@ -78,8 +78,6 @@
 #include "mozilla/ipc/FileDescriptorSetParent.h"
 #include "mozilla/ipc/FileDescriptorUtils.h"
 #include "mozilla/ipc/PFileDescriptorSetParent.h"
-#include "mozilla/ipc/PSendStreamParent.h"
-#include "mozilla/ipc/SendStreamAlloc.h"
 #include "mozilla/ipc/TestShellParent.h"
 #include "mozilla/ipc/InputStreamUtils.h"
 #include "mozilla/jsipc/CrossProcessObjectWrappers.h"
@@ -3837,19 +3835,6 @@ bool
 ContentParent::DeallocPPrintingParent(PPrintingParent* printing)
 {
   delete printing;
-  return true;
-}
-
-PSendStreamParent*
-ContentParent::AllocPSendStreamParent()
-{
-  return mozilla::ipc::AllocPSendStreamParent();
-}
-
-bool
-ContentParent::DeallocPSendStreamParent(PSendStreamParent* aActor)
-{
-  delete aActor;
   return true;
 }
 
