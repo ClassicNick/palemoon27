@@ -321,17 +321,6 @@ UNIFIED_SOURCES += [
     'nsXMLContentSerializer.cpp',
     'nsXMLHttpRequest.cpp',
     'nsXMLNameSpaceMap.cpp',
-<<<<<<< HEAD
-    'PerformanceCompositeTiming.cpp',
-    'PerformanceEntry.cpp',
-    'PerformanceMark.cpp',
-    'PerformanceMeasure.cpp',
-    'PerformanceObserver.cpp',
-    'PerformanceObserverEntryList.cpp',
-    'PerformanceRenderTiming.cpp',
-    'PerformanceResourceTiming.cpp',
-=======
->>>>>>> 6effb313a0 (Bug 1278816 - Move Performance API into dom/performance, r=smaug)
     'PostMessageEvent.cpp',
     'ProcessGlobal.cpp',
     'ResponsiveImageSelector.cpp',
