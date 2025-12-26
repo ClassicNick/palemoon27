@@ -113,7 +113,6 @@ DIRS += [
     'vr',
     'u2f',
     'console',
-    'performance',
 ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':

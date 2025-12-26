@@ -1948,8 +1948,11 @@ InitializeANGLEConfig()
   d3d11ANGLE.EnableByDefault();
 
   nsCString message;
-  if (!IsGfxInfoStatusOkay(nsIGfxInfo::FEATURE_DIRECT3D_11_ANGLE, &message)) {
-    d3d11ANGLE.Disable(FeatureStatus::Blacklisted, message.get());
+  if (!IsGfxInfoStatusOkay(nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS)) {
+    // We do not expect hardware D3D11 to work, so we'll try WARP.
+      gfxConfig::EnableFallback(
+        Fallback::USE_D3D11_WARP_COMPOSITOR,
+        "Hardware-accelerated Direct3D11 compositing is blocklisted");
   }
 
 }

@@ -26,7 +26,7 @@ class FlyWebPublishedServerImpl final : public FlyWebPublishedServer
                                       , public HttpServerListener
 {
 public:
-  FlyWebPublishedServerImpl(nsPIDOMWindowInner* aOwner,
+  FlyWebPublishedServerImpl(nsPIDOMWindow* aOwner,
                             const nsAString& aName,
                             const FlyWebPublishOptions& aOptions);
 
@@ -88,7 +88,7 @@ class FlyWebPublishedServerChild final : public FlyWebPublishedServer
                                        , public PFlyWebPublishedServerChild
 {
 public:
-  FlyWebPublishedServerChild(nsPIDOMWindowInner* aOwner,
+  FlyWebPublishedServerChild(nsPIDOMWindow* aOwner,
                              const nsAString& aName,
                              const FlyWebPublishOptions& aOptions);
 

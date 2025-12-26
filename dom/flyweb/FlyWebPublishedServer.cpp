@@ -127,7 +127,7 @@ FlyWebPublishedServer::OnWebSocketAccept(InternalRequest* aConnectRequest,
   }
   MOZ_ASSERT(provider);
 
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(GetOwner());
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(GetOwner());
   AutoJSContext cx;
   GlobalObject global(cx, nsGlobalWindow::Cast(window)->FastGetGlobalJSObject());
 
@@ -158,7 +158,7 @@ FlyWebPublishedServer::OnWebSocketAccept(InternalRequest* aConnectRequest,
 
 NS_IMPL_ISUPPORTS_INHERITED0(FlyWebPublishedServerImpl, mozilla::DOMEventTargetHelper)
 
-FlyWebPublishedServerImpl::FlyWebPublishedServerImpl(nsPIDOMWindowInner* aOwner,
+FlyWebPublishedServerImpl::FlyWebPublishedServerImpl(nsPIDOMWindow* aOwner,
                                                      const nsAString& aName,
                                                      const FlyWebPublishOptions& aOptions)
   : FlyWebPublishedServer(aOwner, aName, aOptions)
@@ -242,7 +242,7 @@ FlyWebPublishedServerImpl::OnWebSocketAcceptInternal(InternalRequest* aConnectRe
 
 /******** FlyWebPublishedServerChild ********/
 
-FlyWebPublishedServerChild::FlyWebPublishedServerChild(nsPIDOMWindowInner* aOwner,
+FlyWebPublishedServerChild::FlyWebPublishedServerChild(nsPIDOMWindow* aOwner,
                                                        const nsAString& aName,
                                                        const FlyWebPublishOptions& aOptions)
   : FlyWebPublishedServer(aOwner, aName, aOptions)

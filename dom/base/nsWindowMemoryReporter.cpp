@@ -18,7 +18,6 @@
 #include "nsPrintfCString.h"
 #include "XPCJSMemoryReporter.h"
 #include "js/MemoryMetrics.h"
-#include "nsQueryObject.h"
 #include "nsServiceManagerUtils.h"
 
 using namespace mozilla;
