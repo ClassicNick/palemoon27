@@ -151,8 +151,9 @@ protected:
   nsresult AddSupportsPrimitiveTojsvals(nsISupports *aArg, JS::Value *aArgv);
 
 private:
-  void Destroy();
+  void DestroyJSContext();
 
+  JSContext *mContext;
   JS::Heap<JSObject*> mWindowProxy;
 
   bool mIsInitialized;
