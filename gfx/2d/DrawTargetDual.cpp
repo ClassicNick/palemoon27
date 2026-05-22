@@ -61,11 +61,9 @@ public:
     const SourceSurfaceDual *ssDual =
       static_cast<const SourceSurfaceDual*>(surfPat->mSurface.get());
     mA = new (mSurfPatA.addr()) SurfacePattern(ssDual->mA, surfPat->mExtendMode,
-                                               surfPat->mMatrix,
-                                               surfPat->mSamplingFilter);
+                                               surfPat->mMatrix, surfPat->mFilter);
     mB = new (mSurfPatB.addr()) SurfacePattern(ssDual->mB, surfPat->mExtendMode,
-                                               surfPat->mMatrix,
-                                               surfPat->mSamplingFilter);
+                                               surfPat->mMatrix, surfPat->mFilter);
     mPatternsInitialized = true;
   }
 

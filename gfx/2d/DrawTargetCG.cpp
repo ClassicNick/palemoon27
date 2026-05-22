@@ -131,15 +131,15 @@ CGBlendMode ToBlendMode(CompositionOp op)
 }
 
 static CGInterpolationQuality
-InterpolationQualityFromSamplingFilter(SamplingFilter aSamplingFilter)
+InterpolationQualityFromFilter(Filter aFilter)
 {
-  switch (aSamplingFilter) {
+  switch (aFilter) {
     default:
-    case SamplingFilter::LINEAR:
+    case Filter::LINEAR:
       return kCGInterpolationLow;
-    case SamplingFilter::POINT:
+    case Filter::POINT:
       return kCGInterpolationNone;
-    case SamplingFilter::GOOD:
+    case Filter::GOOD:
       return kCGInterpolationLow;
   }
 }
@@ -361,11 +361,11 @@ DrawTargetCG::DrawSurface(SourceSurface *aSurface,
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
 
-  CGContextSetInterpolationQuality(cg, InterpolationQualityFromSamplingFilter(aSurfOptions.mSamplingFilter));
+  CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(aSurfOptions.mFilter));
 
   CGImageRef image = GetRetainedImageFromSourceSurface(aSurface);
 
-  if (aSurfOptions.mSamplingFilter == SamplingFilter::POINT) {
+  if (aSurfOptions.mFilter == Filter::POINT) {
     CGImageRef subimage = CGImageCreateWithImageInRect(image, RectToCGRect(aSource));
     CGImageRelease(image);
 
@@ -873,7 +873,7 @@ SetFillFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern &
 
     CGPatternRef pattern = CreateCGPattern(aPattern, CGContextGetCTM(cg));
     const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
-    CGContextSetInterpolationQuality(cg, InterpolationQualityFromSamplingFilter(pat.mSamplingFilter));
+    CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
     CGFloat alpha = 1.;
     CGContextSetFillPattern(cg, pattern, &alpha);
     CGPatternRelease(pattern);
@@ -898,7 +898,7 @@ SetStrokeFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern
 
     CGPatternRef pattern = CreateCGPattern(aPattern, CGContextGetCTM(cg));
     const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
-    CGContextSetInterpolationQuality(cg, InterpolationQualityFromSamplingFilter(pat.mSamplingFilter));
+    CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
     CGFloat alpha = 1.;
     CGContextSetStrokePattern(cg, pattern, &alpha);
     CGPatternRelease(pattern);
@@ -1011,7 +1011,7 @@ DrawTargetCG::FillRect(const Rect &aRect,
 
     CGRect imageRect = CGRectMake(0, 0, CGImageGetWidth(image), CGImageGetHeight(image));
 
-    CGContextSetInterpolationQuality(cg, InterpolationQualityFromSamplingFilter(pat.mSamplingFilter));
+    CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
 
     CGContextDrawImage(cg, imageRect, image);
     CGImageRelease(image);

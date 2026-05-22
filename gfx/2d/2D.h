@@ -136,13 +136,13 @@ struct StrokeOptions {
  */
 struct DrawSurfaceOptions {
   /// For constructor parameter description, see member data documentation.
-  explicit DrawSurfaceOptions(SamplingFilter aSamplingFilter = SamplingFilter::LINEAR,
+  explicit DrawSurfaceOptions(Filter aFilter = Filter::LINEAR,
                               SamplingBounds aSamplingBounds = SamplingBounds::UNBOUNDED)
-    : mSamplingFilter(aSamplingFilter)
+    : mFilter(aFilter)
     , mSamplingBounds(aSamplingBounds)
   { }
 
-  SamplingFilter mSamplingFilter; /**< SamplingFilter used when resampling source surface
+  Filter mFilter;                 /**< Filter used when resampling source surface
                                        region to the destination region. */
   SamplingBounds mSamplingBounds; /**< This indicates whether the implementation is
                                        allowed to sample pixels outside the source
@@ -287,12 +287,11 @@ class SurfacePattern : public Pattern
 public:
   /// For constructor parameter description, see member data documentation.
   SurfacePattern(SourceSurface *aSourceSurface, ExtendMode aExtendMode,
-                 const Matrix &aMatrix = Matrix(),
-                 SamplingFilter aSamplingFilter = SamplingFilter::GOOD,
+                 const Matrix &aMatrix = Matrix(), Filter aFilter = Filter::GOOD,
                  const IntRect &aSamplingRect = IntRect())
     : mSurface(aSourceSurface)
     , mExtendMode(aExtendMode)
-    , mSamplingFilter(aSamplingFilter)
+    , mFilter(aFilter)
     , mMatrix(aMatrix)
     , mSamplingRect(aSamplingRect)
   {}
@@ -305,7 +304,7 @@ public:
   RefPtr<SourceSurface> mSurface; //!< Surface to use for drawing
   ExtendMode mExtendMode;         /**< This determines how the image is extended
                                        outside the bounds of the image */
-  SamplingFilter mSamplingFilter; //!< Resampling filter for resampling the image.
+  Filter mFilter;                 //!< Resampling filter for resampling the image.
   Matrix mMatrix;                 //!< Transforms the pattern into user space
 
   IntRect mSamplingRect;          /**< Rect that must not be sampled outside of,

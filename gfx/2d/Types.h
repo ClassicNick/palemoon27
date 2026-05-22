@@ -229,8 +229,7 @@ enum class AntialiasMode : int8_t {
   DEFAULT
 };
 
-// See https://en.wikipedia.org/wiki/Texture_filtering
-enum class SamplingFilter : int8_t {
+enum class Filter : int8_t {
   GOOD,
   LINEAR,
   POINT,
