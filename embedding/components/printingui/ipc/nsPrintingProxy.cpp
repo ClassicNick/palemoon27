@@ -93,7 +93,6 @@ nsPrintingProxy::ShowPrintDialog(nsIDOMWindow *parent,
   TabChild* pBrowser = static_cast<TabChild*>(tabchild.get());
 
   // Next, serialize the nsIWebBrowserPrint and nsIPrintSettings we were given.
-  nsresult rv = NS_OK;
   nsCOMPtr<nsIPrintSettingsService> printSettingsSvc =
     do_GetService("@mozilla.org/gfx/printsettings-service;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -168,7 +167,6 @@ nsPrintingProxy::ShowProgress(nsIDOMWindow*            parent,
     }
   }
 
-  nsresult rv = NS_OK;
   mozilla::Unused << SendShowProgress(pBrowser, dialogChild, remotePrintJob,
                                       isForPrinting, notifyOnOpen, &rv);
   if (NS_FAILED(rv)) {
