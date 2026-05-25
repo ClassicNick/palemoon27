@@ -693,6 +693,12 @@ JS::RuntimeOptionsRef(JSContext* cx)
     return cx->runtime()->options();
 }
 
+JS_PUBLIC_API(JS::ContextOptions&)
+JS::ContextOptionsRef(JSContext* cx)
+{
+    return cx->options();
+}
+
 JS_PUBLIC_API(const char*)
 JS_GetImplementationVersion(void)
 {
