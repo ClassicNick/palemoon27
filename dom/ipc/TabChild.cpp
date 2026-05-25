@@ -1583,10 +1583,6 @@ TabChild::ApplyShowInfo(const ShowInfo& aInfo)
             nsIScriptError::warningFlag,
             NS_LITERAL_CSTRING("mozprivatebrowsing"),
             nullptr);
-        } else {
-          DocShellOriginAttributes attrs(nsDocShell::Cast(docShell)->GetOriginAttributes());
-          attrs.SyncAttributesWithPrivateBrowsing(true);
-          nsDocShell::Cast(docShell)->SetOriginAttributes(attrs);
         }
       }
     }

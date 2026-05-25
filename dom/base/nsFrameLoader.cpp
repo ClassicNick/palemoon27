@@ -2088,15 +2088,9 @@ nsFrameLoader::MaybeCreateDocShell()
           nsIScriptError::warningFlag,
           NS_LITERAL_CSTRING("mozprivatebrowsing"),
           nullptr);
-      } else {
-        // This handles the case where a frames private browsing is set by chrome flags
-        // and not inherited by its parent.
-        attrs.SyncAttributesWithPrivateBrowsing(isPrivate);
       }
     }
   }
-
-  nsDocShell::Cast(mDocShell)->SetOriginAttributes(attrs);
 
   ReallyLoadFrameScripts();
   InitializeBrowserAPI();
