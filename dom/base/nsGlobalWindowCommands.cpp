@@ -1055,7 +1055,7 @@ nsLookUpDictionaryCommand::DoCommandParams(const char* aCommandName,
 
   LayoutDeviceIntPoint point(x, y);
 
-  nsCOMPtr<nsPIDOMWindowOuter> window = do_QueryInterface(aCommandContext);
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(aCommandContext);
   if (NS_WARN_IF(!window)) {
     return NS_ERROR_FAILURE;
   }

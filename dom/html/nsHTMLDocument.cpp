@@ -2964,7 +2964,7 @@ nsHTMLDocument::GetMidasCommandManager(nsICommandManager** aCmdMgr)
   if (!docshell)
     return NS_ERROR_FAILURE;
 
-  mMidasCommandManager = docshell->GetCommandManager();
+  mMidasCommandManager = do_GetInterface(docshell);
   if (!mMidasCommandManager)
     return NS_ERROR_FAILURE;
 

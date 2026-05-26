@@ -2480,7 +2480,7 @@ TabChild::RecvPrint(const uint64_t& aOuterWindowID, const PrintData& aPrintData)
   }
 
   nsCOMPtr<nsIWebBrowserPrint> webBrowserPrint =
-    do_GetInterface(outerWindow->AsOuter());
+    do_GetInterface((nsPIDOMWindow*) outerWindow);
   if (NS_WARN_IF(!webBrowserPrint)) {
     return true;
   }
