@@ -322,7 +322,7 @@ WebConsoleActor.prototype =
       // We are very explicitly examining the "console" property of
       // the non-Xrayed object here.
       let console = aWindow.wrappedJSObject.console;
-      isNative = new XPCNativeWrapper(console).IS_NATIVE_CONSOLE
+      isNative = console instanceof aWindow.Console;
     }
     catch (ex) { }
     return isNative;
