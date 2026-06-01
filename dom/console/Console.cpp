@@ -2429,7 +2429,7 @@ Console::GetConsole(const GlobalObject& aGlobal)
   RefPtr<Console> console;
 
   if (NS_IsMainThread()) {
-    nsCOMPtr<nsPIDOMWindowInner> innerWindow =
+    nsCOMPtr<nsPIDOMWindow> innerWindow =
       do_QueryInterface(aGlobal.GetAsSupports());
     if (NS_WARN_IF(!innerWindow)) {
       return nullptr;
