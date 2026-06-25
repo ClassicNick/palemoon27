@@ -2600,11 +2600,11 @@ struct MOZ_NEEDS_MEMMOVABLE_MEMBERS nsStylePosition
   nsChangeHint CalcDifference(const nsStylePosition& aOther,
                               const nsStyleVisibility* aOldStyleVisibility) const;
   static nsChangeHint MaxDifference() {
-    return NS_CombineHint(NS_STYLE_HINT_REFLOW,
-                          nsChangeHint(nsChangeHint_NeutralChange |
+    return NS_STYLE_HINT_REFLOW |
+                          nsChangeHint_NeutralChange |
                                        nsChangeHint_RecomputePosition |
                                        nsChangeHint_UpdateParentOverflow |
-                                       nsChangeHint_UpdateComputedBSize));
+                                       nsChangeHint_UpdateComputedBSize;
   }
   static nsChangeHint DifferenceAlwaysHandledForDescendants() {
     // CalcDifference can return all of the reflow hints that are
