@@ -1139,7 +1139,7 @@ StreamCopier::Run()
     WriteState state = { this, NS_OK };
     uint32_t written;
     rv = mSink->WriteSegments(FillOutputBufferHelper, &state,
-                              mozilla::net::nsIOService::gDefaultSegmentSize,
+                              nsIOService::gDefaultSegmentSize,
                               &written);
     MOZ_ASSERT(NS_SUCCEEDED(rv) || NS_SUCCEEDED(state.sourceRv));
     if (rv == NS_BASE_STREAM_WOULD_BLOCK) {
