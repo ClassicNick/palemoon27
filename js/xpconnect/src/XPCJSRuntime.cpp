@@ -3314,7 +3314,7 @@ XPCJSRuntime::XPCJSRuntime()
    mWrappedJSRoots(nullptr),
    mObjectHolderRoots(nullptr),
    mWatchdogManager(new WatchdogManager(this)),
-   mAsyncSnowWhiteFreer(new AsyncFreeSnowWhite()),
+   mAsyncSnowWhiteFreer(new AsyncFreeSnowWhite())
 {
 }
 

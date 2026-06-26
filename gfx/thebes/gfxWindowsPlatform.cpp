@@ -1948,7 +1948,7 @@ InitializeANGLEConfig()
   d3d11ANGLE.EnableByDefault();
 
   nsCString message;
-  if (!IsGfxInfoStatusOkay(nsIGfxInfo::FEATURE_DIRECT3D_11_ANGLE, &message)) {
+  if (!IsGfxInfoStatusOkay(nsIGfxInfo::FEATURE_DIRECT3D_11_ANGLE)) {
     d3d11ANGLE.Disable(FeatureStatus::Blacklisted, message.get());
   }
 

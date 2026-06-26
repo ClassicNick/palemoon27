@@ -133,7 +133,7 @@ FlyWebPublishedServer::OnWebSocketAccept(InternalRequest* aConnectRequest,
   }
   MOZ_ASSERT(provider);
 
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(GetOwner());
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(GetOwner());
   AutoJSContext cx;
   GlobalObject global(cx, nsGlobalWindow::Cast(window)->FastGetGlobalJSObject());
 
