@@ -3377,7 +3377,7 @@ HttpBaseChannel::GetPerformance()
     return nullptr;
   }
 
-  nsCOMPtr<nsPIDOMWindowInner> innerWindow = loadingDocument->GetInnerWindow();
+  nsCOMPtr<nsPIDOMWindow> innerWindow = loadingDocument->GetInnerWindow();
   if (!innerWindow) {
     return nullptr;
   }
