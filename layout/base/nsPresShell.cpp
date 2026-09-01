@@ -1557,7 +1557,7 @@ PresShell::GetSelectionControllerForFocusedContent(nsIContent** aFocusedContent)
   }
 
   if (mDocument) {
-    nsCOMPtr<nsPIDOMWindowOuter> focusedWindow;
+    nsCOMPtr<nsPIDOMWindow> focusedWindow;
     nsCOMPtr<nsIContent> focusedContent =
       nsFocusManager::GetFocusedDescendant(mDocument->GetWindow(), false,
                                            getter_AddRefs(focusedWindow));

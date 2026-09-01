@@ -75,6 +75,10 @@ class nsPIDOMWindow : public nsIDOMWindowInternal
 {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_PIDOMWINDOW_IID)
+  
+  static nsPIDOMWindow* From(nsIDOMWindow* aFrom) {
+    return static_cast<nsPIDOMWindow*>(aFrom);
+  }
 
   virtual nsPIDOMWindow* GetPrivateRoot() = 0;
 
