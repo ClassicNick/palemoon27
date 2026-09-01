@@ -141,7 +141,7 @@ public:
             uint32_t aChromeFlags);
 
   Element* GetOwnerElement() const { return mFrameElement; }
-  already_AddRefed<nsPIDOMWindowOuter> GetParentWindowOuter();
+  already_AddRefed<nsPIDOMWindow> GetParentWindowOuter();
 
   void SetOwnerElement(Element* aElement);
 

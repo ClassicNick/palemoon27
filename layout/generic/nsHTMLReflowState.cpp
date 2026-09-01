@@ -482,9 +482,9 @@ void nsHTMLReflowState::InitCBReflowState()
     mCBReflowState = nullptr;
     return;
   }
-  if (parentReflowState->mFlags.mDummyParentReflowState) {
+  if (mParentReflowState->mFlags.mDummyParentReflowState) {
     // from bug 1316649
-    mCBReflowState = parentReflowState;
+    mCBReflowState = mParentReflowState;
     return;
   }
 

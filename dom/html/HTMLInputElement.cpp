@@ -1242,7 +1242,7 @@ HTMLInputElement::InitDatePicker()
 
   nsCOMPtr<nsIDocument> doc = OwnerDoc();
 
-  nsCOMPtr<nsPIDOMWindowOuter> win = doc->GetWindow();
+  nsCOMPtr<nsPIDOMWindow> win = doc->GetWindow();
   if (!win) {
     return NS_ERROR_FAILURE;
   }

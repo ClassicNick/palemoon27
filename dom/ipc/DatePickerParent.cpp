@@ -56,7 +56,7 @@ DatePickerParent::CreateDatePicker()
     return false;
   }
 
-  nsCOMPtr<mozIDOMWindowProxy> window = do_QueryInterface(ownerElement->OwnerDoc()->GetWindow());
+  nsCOMPtr<nsIDOMWindow> window = do_QueryInterface(ownerElement->OwnerDoc()->GetWindow());
   if (!window) {
     return false;
   }

@@ -6,7 +6,7 @@
 
 #include "nsISupports.idl"
 
-interface mozIDOMWindowProxy;
+interface nsIDOMWindow;
 
 [scriptable, uuid(13388a28-1b0b-4218-a31b-588f7a4ec26c)]
 interface nsIDatePickerShownCallback : nsISupports
@@ -40,7 +40,7 @@ interface nsIDatePicker : nsISupports
   * @param      initialDate  The date to show when the widget is opened. The
   *                          parameter has to follow the format "YYYY-MM-DD"
   */
-  void init(in mozIDOMWindowProxy parent, in AString title, in AString initialDate);
+  void init(in nsIDOMWindow parent, in AString title, in AString initialDate);
 
  /**
   * Opens the date dialog asynchrounously.

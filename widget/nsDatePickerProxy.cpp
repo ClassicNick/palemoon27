@@ -14,7 +14,7 @@ NS_IMPL_ISUPPORTS(nsDatePickerProxy, nsIDatePicker)
 
 /* void init (in nsIDOMWindow parent, in AString title, in short mode); */
 NS_IMETHODIMP
-nsDatePickerProxy::Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
+nsDatePickerProxy::Init(nsIDOMWindow* aParent, const nsAString& aTitle,
                          const nsAString& aInitialDate)
 {
   TabChild* tabChild = TabChild::GetFrom(aParent);
