@@ -88,8 +88,6 @@
 
 #include "nsSandboxFlags.h"
 
-#include "mozilla/DocLoadingTimelineMarker.h"
-
 //--------------------------
 // Printing Include
 //---------------------------

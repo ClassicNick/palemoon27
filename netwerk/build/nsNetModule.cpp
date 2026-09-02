@@ -75,7 +75,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSocketTransportService, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsServerSocket)
 
 #include "TLSServerSocket.h"
-typedef mozilla::net::TLSServerSocket TLSServerSocket;
 NS_GENERIC_FACTORY_CONSTRUCTOR(TLSServerSocket)
 
 #include "nsUDPSocket.h"
@@ -125,15 +124,12 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsEffectiveTLDService, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsSerializationHelper)
 
 #include "RedirectChannelRegistrar.h"
-typedef mozilla::net::RedirectChannelRegistrar RedirectChannelRegistrar;
 NS_GENERIC_FACTORY_CONSTRUCTOR(RedirectChannelRegistrar)
 
 #include "CacheStorageService.h"
-typedef mozilla::net::CacheStorageService CacheStorageService;
 NS_GENERIC_FACTORY_CONSTRUCTOR(CacheStorageService)
 
 #include "LoadContextInfo.h"
-typedef mozilla::net::LoadContextInfoFactory LoadContextInfoFactory;
 NS_GENERIC_FACTORY_CONSTRUCTOR(LoadContextInfoFactory)
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -146,7 +142,6 @@ namespace net {
 } // namespace mozilla
 
 #include "RequestContextService.h"
-typedef mozilla::net::RequestContextService RequestContextService;
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(RequestContextService, Init)
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -54,7 +54,7 @@
 #include "nsXULAppAPI.h"
 
 #include "nsIWindowMediator.h"
-#include "mozIDOMWindow.h"
+#include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
 #include "nsIWidget.h"
 #include "mozilla/WidgetUtils.h"
@@ -90,14 +90,14 @@ GetMostRecentNavigatorHWND()
     return nullptr;
   }
 
-  nsCOMPtr<mozIDOMWindowProxy> navWin;
+  nsCOMPtr<nsIDOMWindow> navWin;
   rv = winMediator->GetMostRecentWindow(MOZ_UTF16("navigator:browser"),
                                         getter_AddRefs(navWin));
   if (NS_FAILED(rv) || !navWin) {
     return nullptr;
   }
 
-  nsPIDOMWindowOuter* win = nsPIDOMWindowOuter::From(navWin);
+  nsPIDOMWindow* win = nsPIDOMWindow::From(navWin);
   nsCOMPtr<nsIWidget> widget = widget::WidgetUtils::DOMWindowToWidget(win);
   if (!widget) {
     return nullptr;

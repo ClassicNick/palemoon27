@@ -24,6 +24,8 @@
 #include "mozilla/UniquePtr.h"
 #include "PollableEvent.h"
 
+using namespace mozilla;
+
 class nsASocketHandler;
 struct PRPollDesc;
 
